@@ -179,7 +179,7 @@ void rendering_2d(int w, int h) {
 }
 
 void draw_quad(float x0, float y0, float x1, float y1, Vector4 c) {
-    assert(vertex_count <= (MAX_VERTICES - 6));
+    if (vertex_count > (MAX_VERTICES - 6)) frame_flush();
 
     Vertex *v = vertices + vertex_count;
     v->position.x = x0;
@@ -236,7 +236,7 @@ void draw_quad(float x0, float y0, float x1, float y1, Vector4 c) {
 void draw_quad(float x0, float y0, float x1, float y1, 
                float u0, float v0, float u1, float v1,
                Vector4 c) {
-    assert(vertex_count <= (MAX_VERTICES - 6));
+    if (vertex_count > (MAX_VERTICES - 6)) frame_flush();
 
     Vertex *v = vertices + vertex_count;
     v->position.x = x0;
@@ -292,7 +292,7 @@ void draw_quad(float x0, float y0, float x1, float y1,
 
 void draw_quad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3,
                Vector4 c0, Vector4 c1, Vector4 c2, Vector4 c3) {
-    assert(vertex_count <= (MAX_VERTICES - 6));
+    if (vertex_count > (MAX_VERTICES - 6)) frame_flush();
 
     Vertex *v = vertices + vertex_count;
     v->position = p0;
@@ -337,7 +337,7 @@ void draw_quad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3,
 void draw_quad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3,
                Vector2 uv0, Vector2 uv1, Vector2 uv2, Vector2 uv3,
                Vector4 color) {
-    assert(vertex_count <= (MAX_VERTICES - 6));
+    if (vertex_count > (MAX_VERTICES - 6)) frame_flush();
 
     Vertex *v = vertices + vertex_count;
     v->position = p0;
@@ -649,42 +649,33 @@ static LRESULT CALLBACK win32_main_window_callback(HWND hwnd, UINT msg, WPARAM w
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
         {
-            bool was_down = ((s32)lparam & 0x40000000) != 0;
+            // bool was_down = ((s32)lparam & 0x40000000) != 0;
             bool is_down  = true;
             
             if (wparam == VK_LEFT) {
                 key_left.is_down  = is_down;
-                key_left.was_down = was_down;
             } else if (wparam == VK_RIGHT) {
                 key_right.is_down  = is_down;
-                key_right.was_down = was_down;
             } else if (wparam == VK_SPACE) {
                 key_fire.is_down  = is_down;
-                key_fire.was_down = was_down;
             } else if (wparam == VK_ESCAPE) {
                 key_esc.is_down  = is_down;
-                key_esc.was_down = was_down;
             }
         } break;
 
         case WM_SYSKEYUP:
         case WM_KEYUP:
         {
-            bool was_down = true;
             bool is_down  = false;
             
             if (wparam == VK_LEFT) {
-                key_left.is_down  = is_down;
-                key_left.was_down = was_down;
+                key_left.is_down = is_down;
             } else if (wparam == VK_RIGHT) {
-                key_right.is_down  = is_down;
-                key_right.was_down = was_down;
+                key_right.is_down = is_down;
             } else if (wparam == VK_SPACE) {
-                key_fire.is_down  = is_down;
-                key_fire.was_down = was_down;
+                key_fire.is_down = is_down;
             } else if (wparam == VK_ESCAPE) {
-                key_esc.is_down  = is_down;
-                key_esc.was_down = was_down;
+                key_esc.is_down = is_down;
             }
         } break;
 
