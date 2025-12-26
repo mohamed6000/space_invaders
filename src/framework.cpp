@@ -53,6 +53,18 @@ struct Vertex {
     Vector2 uv;
 };
 
+
+struct Key_State {
+    bool is_down;
+    bool was_down;
+};
+
+Key_State key_left;
+Key_State key_right;
+Key_State key_fire;
+Key_State key_esc;
+
+
 const int MAX_VERTICES = 1024;
 static Vertex vertices[MAX_VERTICES];
 int vertex_count = 0;
@@ -634,6 +646,48 @@ static LRESULT CALLBACK win32_main_window_callback(HWND hwnd, UINT msg, WPARAM w
             back_buffer_height = HIWORD(lparam);
             break;
 
+        case WM_SYSKEYDOWN:
+        case WM_KEYDOWN:
+        {
+            bool was_down = ((s32)lparam & 0x40000000) != 0;
+            bool is_down  = true;
+            
+            if (wparam == VK_LEFT) {
+                key_left.is_down  = is_down;
+                key_left.was_down = was_down;
+            } else if (wparam == VK_RIGHT) {
+                key_right.is_down  = is_down;
+                key_right.was_down = was_down;
+            } else if (wparam == VK_SPACE) {
+                key_fire.is_down  = is_down;
+                key_fire.was_down = was_down;
+            } else if (wparam == VK_ESCAPE) {
+                key_esc.is_down  = is_down;
+                key_esc.was_down = was_down;
+            }
+        } break;
+
+        case WM_SYSKEYUP:
+        case WM_KEYUP:
+        {
+            bool was_down = true;
+            bool is_down  = false;
+            
+            if (wparam == VK_LEFT) {
+                key_left.is_down  = is_down;
+                key_left.was_down = was_down;
+            } else if (wparam == VK_RIGHT) {
+                key_right.is_down  = is_down;
+                key_right.was_down = was_down;
+            } else if (wparam == VK_SPACE) {
+                key_fire.is_down  = is_down;
+                key_fire.was_down = was_down;
+            } else if (wparam == VK_ESCAPE) {
+                key_esc.is_down  = is_down;
+                key_esc.was_down = was_down;
+            }
+        } break;
+
         default:
             return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
@@ -643,7 +697,7 @@ static LRESULT CALLBACK win32_main_window_callback(HWND hwnd, UINT msg, WPARAM w
 
 static float64 one_over_frequency = 1.0;
 
-HWND init_window_and_opengl(int w, int h) {
+HWND init_window_and_opengl(const char *title, int w, int h) {
     HINSTANCE hInstance = GetModuleHandleW(null);
 
     WNDCLASSEXW wc = {};
@@ -671,9 +725,12 @@ HWND init_window_and_opengl(int w, int h) {
     rect.bottom = h;
     AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, 0);
 
+    WCHAR *w32_utf8_to_wide(const char *s, Allocator allocator);
+    WCHAR *title_wide = w32_utf8_to_wide(title, temporary_allocator);
+
     HWND hwnd = CreateWindowExW(0,
                                 L"WindowClassName",
-                                L"OpenGL",
+                                title_wide,
                                 WS_OVERLAPPEDWINDOW,
                                 CW_USEDEFAULT, CW_USEDEFAULT,
                                 rect.right-rect.left, rect.bottom-rect.left,
@@ -788,7 +845,7 @@ static Colormap colormap;
 static Atom wm_delete_window;
 static GLXContext gl_context;
 
-Window init_window_and_opengl(int w, int h) {
+Window init_window_and_opengl(const char *title, int w, int h) {
     display = XOpenDisplay(null);
     if (!display) {
         write_string("Failed to XOpenDisplay.\n", true);
@@ -869,7 +926,6 @@ Window init_window_and_opengl(int w, int h) {
 
     XFree(visual_info);
 
-    const char *title = "OpenGL (Linux)";
     Atom net_wm_name = XInternAtom(display, "_NET_WM_NAME", False);
     Atom utf8_string = XInternAtom(display, "UTF8_STRING",  False);
 
