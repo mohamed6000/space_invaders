@@ -5,8 +5,8 @@
 
 #include "framework.cpp"
 
-Vector2 ship_size = {114.0f,114.0f};
-Vector2 ship_position  = {400, 60};
+float ship_radius = 114.0f / 2.0f;
+Vector2 ship_position = {400, 60};
 
 struct Bullet {
     Vector2 position;
@@ -16,6 +16,45 @@ struct Bullet {
 Bullet bullets[256];
 int bullet_count = 0;
 float bullet_countdown = 0;
+
+struct Invader {
+    Vector2 position;
+    Vector2 velocity;
+};
+
+Invader invaders[256];
+int invaders_count = 0;
+
+inline int random_get(int min_value, int max_value) {
+    int result = rand() % (max_value - min_value + 1) + min_value;
+    return result;
+}
+
+inline float random_get_float(float x) {
+    float result = ((float)rand() / (float)RAND_MAX) * x;
+    return result;
+}
+
+inline void spawn_invaders(void) {
+    invaders_count = random_get(6, 10);
+
+    float x0 = 0.1f * back_buffer_width;
+    float x1 = back_buffer_width - x0;
+    float y0 = 0.5f * back_buffer_height;
+    float y1 = 0.9f * back_buffer_height;
+
+    float min_speed = 80.0f;
+    float max_speed = 180.0f;
+
+    for (int index = 0; index < invaders_count; index++) {
+        Invader *invader = &invaders[index];
+        invader->position.x = x0 + random_get_float(x1-x0);
+        invader->position.y = y0 + random_get_float(y1-y0);
+
+        invader->velocity.x = min_speed + random_get_float(max_speed-min_speed);
+        invader->velocity.y = 0;
+    }
+}
 
 inline void fire_bullets(void) {
     if (bullet_countdown > 0) return;
@@ -34,11 +73,31 @@ inline void fire_bullets(void) {
     }
 }
 
+float distance(Vector2 p0, Vector2 p1) {
+    float result = (p1.x-p0.x)*(p1.x-p0.x) + (p1.y-p0.y)*(p1.y-p0.y);
+    return sqrtf(result);
+}
+
+inline bool check_invaders_collision(Bullet *bullet) {
+    for (int index = 0; index < invaders_count; index++) {
+        Invader *invader = &invaders[index];
+
+        if (distance(invader->position, bullet->position) < ship_radius) {
+            invaders[index] = invaders[invaders_count-1];
+            invaders_count -= 1;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int main(void) {
     auto window = init_window_and_opengl("Space Invaders", 800, 600);
 
-    Texture spaceship = texture_load_from_file("data/spaceship.png");
-    Texture bullet    = texture_load_from_file("data/bullet.png");
+    Texture spaceship  = texture_load_from_file("data/spaceship.png");
+    Texture spaceship2 = texture_load_from_file("data/spaceship2.png");
+    Texture bullet     = texture_load_from_file("data/bullet.png");
 
     // Depth is mapped as near=-1 and far 1.
     glEnable(GL_DEPTH_TEST);
@@ -46,6 +105,8 @@ int main(void) {
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    spawn_invaders();
 
     float64 last_counter = 0;
 
@@ -68,7 +129,7 @@ int main(void) {
         if (key_left.is_down)  ship_position.x -= dx;
         if (key_right.is_down) ship_position.x += dx;
 
-        float x0 = 0.4f * ship_size.x;
+        float x0 = 0.8f * ship_radius;
         float x1 = back_buffer_width - x0;
 
         if (ship_position.x < x0) ship_position.x = x0;
@@ -84,10 +145,22 @@ int main(void) {
             b->position.x += b->velocity.x * current_dt;
             b->position.y += b->velocity.y * current_dt;
 
-            if (b->position.y > back_buffer_height * 0.9f) {
+            if (check_invaders_collision(b) || 
+                (b->position.y > back_buffer_height * 0.9f)) {
                 // Remove bullet outside of the view.
                 bullets[index] = bullets[bullet_count-1];
                 bullet_count -= 1;
+            }
+        }
+
+
+        for (int index = 0; index < invaders_count; index++) {
+            Invader *invader = &invaders[index];
+            invader->position.x += invader->velocity.x * current_dt;
+            invader->position.y += invader->velocity.y * current_dt;
+
+            if ((invader->position.x > x1) || (invader->position.x < x0)) {
+                invader->velocity.x = -invader->velocity.x;
             }
         }
 
@@ -100,15 +173,31 @@ int main(void) {
         glClearDepth(1);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
+        set_texture(&spaceship2);
+
+        for (int index = 0; index < invaders_count; index++) {
+            Invader *invader = &invaders[index];
+
+            Vector2 p0;
+            p0.x = invader->position.x - ship_radius;
+            p0.y = invader->position.y - ship_radius;
+
+            Vector2 p1;
+            p1.x = invader->position.x + ship_radius;
+            p1.y = invader->position.y + ship_radius;
+
+            draw_quad(p0.x, p0.y, p1.x, p1.y, Vector4{1,1,1,1});
+        }
+
         set_texture(&spaceship);
 
         Vector2 p0;
-        p0.x = ship_position.x - ship_size.x/2;
-        p0.y = ship_position.y - ship_size.y/2;
+        p0.x = ship_position.x - ship_radius;
+        p0.y = ship_position.y - ship_radius;
 
         Vector2 p1;
-        p1.x = ship_position.x + ship_size.x/2;
-        p1.y = ship_position.y + ship_size.y/2;
+        p1.x = ship_position.x + ship_radius;
+        p1.y = ship_position.y + ship_radius;
 
         draw_quad(p0.x, p0.y, 
                   p1.x, p1.y, 
