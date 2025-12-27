@@ -11,6 +11,7 @@ Vector2 ship_position = {400, 60};
 struct Bullet {
     Vector2 position;
     Vector2 velocity;
+    bool is_hostile;
 };
 
 Bullet bullets[256];
@@ -20,6 +21,7 @@ float bullet_countdown = 0;
 struct Invader {
     Vector2 position;
     Vector2 velocity;
+    float bullet_countdown;
 };
 
 Invader invaders[256];
@@ -40,8 +42,8 @@ inline void spawn_invaders(void) {
 
     float x0 = 0.1f * back_buffer_width;
     float x1 = back_buffer_width - x0;
-    float y0 = 0.5f * back_buffer_height;
-    float y1 = 0.9f * back_buffer_height;
+    float y0 = 0.55f * back_buffer_height;
+    float y1 = 0.9f  * back_buffer_height;
 
     float min_speed = 80.0f;
     float max_speed = 180.0f;
@@ -56,21 +58,53 @@ inline void spawn_invaders(void) {
     }
 }
 
-inline void fire_bullets(void) {
-    if (bullet_countdown > 0) return;
+inline Bullet *fire_bullet(Vector2 position) {
+    if (bullet_countdown > 0) return null;
 
     Bullet bullet;
-    bullet.position.x = ship_position.x - 45.0f/2.0f;
-    bullet.position.y = ship_position.y;
+    bullet.is_hostile = false;
+    bullet.position.x = position.x - 45.0f/2.0f;
+    bullet.position.y = position.y;
     bullet.velocity.x = 0;
-    bullet.velocity.y = 280.0f;
+    bullet.velocity.y = 280;
 
     bullet_countdown = 0.22f;
 
     if (bullet_count < array_count(bullets)) {
-        bullets[bullet_count] = bullet;
+        Bullet *result = &bullets[bullet_count];
         bullet_count += 1;
+
+        *result = bullet;
+        return result;
     }
+
+    return null;
+}
+
+inline Bullet *invader_fire_bullet(Invader *invader) {
+    if (invader->bullet_countdown > 0) return null;
+
+    Bullet bullet;
+    bullet.is_hostile = true;
+    bullet.position.x = invader->position.x - 45.0f/2.0f;
+    bullet.position.y = invader->position.y - ship_radius;;
+    bullet.velocity.x = 0;
+    bullet.velocity.y = -240;
+    if (random_get(0, 2)) {
+        bullet.velocity.y = -480;
+    }
+
+    invader->bullet_countdown = 0.8f;
+
+    if (bullet_count < array_count(bullets)) {
+        Bullet *result = &bullets[bullet_count];
+        bullet_count += 1;
+
+        *result = bullet;
+        return result;
+    }
+
+    return null;
 }
 
 float distance(Vector2 p0, Vector2 p1) {
@@ -79,6 +113,8 @@ float distance(Vector2 p0, Vector2 p1) {
 }
 
 inline bool check_invaders_collision(Bullet *bullet) {
+    if (bullet->is_hostile) return false;
+
     for (int index = 0; index < invaders_count; index++) {
         Invader *invader = &invaders[index];
 
@@ -122,7 +158,9 @@ int main(void) {
             should_quit = true;
         }
 
-        if (key_fire.is_down) fire_bullets();
+        if (key_fire.is_down) {
+            fire_bullet(ship_position);
+        }
 
         float dx = 240.0f * current_dt;
 
@@ -146,7 +184,7 @@ int main(void) {
             b->position.y += b->velocity.y * current_dt;
 
             if (check_invaders_collision(b) || 
-                (b->position.y > back_buffer_height * 0.9f)) {
+                (b->position.y > back_buffer_height)) {
                 // Remove bullet outside of the view.
                 bullets[index] = bullets[bullet_count-1];
                 bullet_count -= 1;
@@ -155,12 +193,19 @@ int main(void) {
 
 
         for (int index = 0; index < invaders_count; index++) {
-            Invader *invader = &invaders[index];
-            invader->position.x += invader->velocity.x * current_dt;
-            invader->position.y += invader->velocity.y * current_dt;
+            Invader *it = &invaders[index];
+            it->position.x += it->velocity.x * current_dt;
+            it->position.y += it->velocity.y * current_dt;
 
-            if ((invader->position.x > x1) || (invader->position.x < x0)) {
-                invader->velocity.x = -invader->velocity.x;
+            if ((it->position.x > x1) || (it->position.x < x0)) {
+                it->velocity.x = -it->velocity.x;
+            }
+
+            it->bullet_countdown -= current_dt;
+
+            int roll = random_get(0, 100);
+            if (roll < 60) {
+                invader_fire_bullet(it);
             }
         }
 
