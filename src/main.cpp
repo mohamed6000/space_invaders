@@ -21,8 +21,8 @@ float bullet_countdown = 0;
 struct Invader {
     Vector2 position;
     Vector2 velocity;
-    float bullet_countdown;
 };
+float invader_bullet_countdown;
 
 Invader invaders[256];
 int invaders_count = 0;
@@ -82,7 +82,7 @@ inline Bullet *fire_bullet(Vector2 position) {
 }
 
 inline Bullet *invader_fire_bullet(Invader *invader) {
-    if (invader->bullet_countdown > 0) return null;
+    if (invader_bullet_countdown > 0) return null;
 
     Bullet bullet;
     bullet.is_hostile = true;
@@ -94,7 +94,7 @@ inline Bullet *invader_fire_bullet(Invader *invader) {
         bullet.velocity.y = -480;
     }
 
-    invader->bullet_countdown = 0.8f;
+    invader_bullet_countdown = 0.8f;
 
     if (bullet_count < array_count(bullets)) {
         Bullet *result = &bullets[bullet_count];
@@ -201,7 +201,7 @@ int main(void) {
                 it->velocity.x = -it->velocity.x;
             }
 
-            it->bullet_countdown -= current_dt;
+            invader_bullet_countdown -= current_dt;
 
             int roll = random_get(0, 100);
             if (roll < 60) {
