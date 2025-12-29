@@ -135,6 +135,29 @@ inline bool check_invaders_collision(Bullet *bullet) {
     return false;
 }
 
+inline void imm_draw_circle(Vector2 center, float radius, Vector4 color, int segments = 32) {
+    for (int index = 0; index < segments; index++) {
+        float theta0 = (float)index / segments * (float)TAU;
+        float theta1 = (float)(index + 1) / segments * (float)TAU;
+
+        float ct0 = cosf(theta0);
+        float st0 = sinf(theta0);
+        float ct1 = cosf(theta1);
+        float st1 = sinf(theta1);
+
+        float x0 = ct0 * radius;
+        float y0 = st0 * radius;
+        float x1 = ct1 * radius;
+        float y1 = st1 * radius;
+
+        Vector2 p0 = {center.x + x0, center.y + y0};
+        Vector2 p1 = {center.x + x1, center.y + y1};
+
+        draw_vertex(p0, color);
+        draw_vertex(p1, color);
+    }
+}
+
 int main(void) {
     auto window = init_window_and_opengl("Space Invaders", 800, 600);
 
@@ -290,70 +313,10 @@ int main(void) {
         for (int index = 0; index < invaders_count; index++) {
             Invader *invader = &invaders[index];
 
-            Vector2 p0;
-            Vector2 p1;
-            Vector2 p2;
-            Vector2 p3;
-
-            Vector4 color = {1,0,0,1};
-
-            p0.x = invader->position.x - ship_radius;
-            p0.y = invader->position.y - ship_radius;
-
-            p1.x = invader->position.x + ship_radius;
-            p1.y = invader->position.y - ship_radius;
-
-            p2.x = invader->position.x + ship_radius;
-            p2.y = invader->position.y + ship_radius;
-
-            p3.x = invader->position.x - ship_radius;
-            p3.y = invader->position.y + ship_radius;
-
-            draw_vertex(p0, color);
-            draw_vertex(p1, color);
-
-            draw_vertex(p1, color);
-            draw_vertex(p2, color);
-
-            draw_vertex(p2, color);
-            draw_vertex(p3, color);
-
-            draw_vertex(p3, color);
-            draw_vertex(p0, color);
+            imm_draw_circle(invader->position, ship_radius, {1,0,0,1});
         }
 
-        {
-            Vector4 color = {1,0,0,1};
-
-            Vector2 p0;
-            Vector2 p1;
-            Vector2 p2;
-            Vector2 p3;
-
-            p0.x = ship_position.x - ship_radius * 0.75f;
-            p0.y = ship_position.y - ship_radius * 0.75f;
-
-            p1.x = ship_position.x + ship_radius * 0.75f;
-            p1.y = ship_position.y - ship_radius * 0.75f;
-
-            p2.x = ship_position.x + ship_radius * 0.75f;
-            p2.y = ship_position.y + ship_radius * 0.75f;
-
-            p3.x = ship_position.x - ship_radius * 0.75f;
-            p3.y = ship_position.y + ship_radius * 0.75f;
-
-            draw_vertex(p0, color);
-            draw_vertex(p1, color);
-
-            draw_vertex(p1, color);
-            draw_vertex(p2, color);
-
-            draw_vertex(p2, color);
-            draw_vertex(p3, color);
-
-            draw_vertex(p3, color);
-            draw_vertex(p0, color);
-        }
+        imm_draw_circle(ship_position, ship_radius * 0.75f, {1,0,0,1});
 
         frame_flush();
         swap_buffers(window);
