@@ -134,6 +134,7 @@ int main(void) {
     Texture spaceship  = texture_load_from_file("data/spaceship.png");
     Texture spaceship2 = texture_load_from_file("data/spaceship2.png");
     Texture bullet     = texture_load_from_file("data/bullet.png");
+    Texture bullet2    = texture_load_from_file("data/bullet2.png");
 
     // Depth is mapped as near=-1 and far 1.
     glEnable(GL_DEPTH_TEST);
@@ -248,10 +249,14 @@ int main(void) {
                   p1.x, p1.y, 
                   Vector4{1,1,1,1});
 
-        set_texture(&bullet);
-
         for (int index = 0; index < bullet_count; index++) {
             Bullet *b = &bullets[index];
+            if (b->is_hostile) {
+                set_texture(&bullet2);
+            } else {
+                set_texture(&bullet);
+            }
+
             draw_quad(b->position.x,
                       b->position.y,
                       b->position.x + 45.0f,
