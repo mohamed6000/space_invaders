@@ -28,6 +28,8 @@ GLuint last_bound_texture_id;
 GLuint shader_program;
 GLuint projection_loc;
 
+int current_vertex_per_primitive = 3;
+
 struct Vector2 {
     float x, y;
 };
@@ -107,9 +109,21 @@ void frame_flush(void) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, size_of(vertices[0]) * vertex_count, vertices, GL_STREAM_DRAW);
 
-    glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+    if (current_vertex_per_primitive == 3) {
+        glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+    } else {
+        glDrawArrays(GL_LINES, 0, vertex_count);
+    }
 
     vertex_count = 0;
+}
+
+void frame_begin(int vertex_per_primitive = 3) {
+    if (vertex_per_primitive != current_vertex_per_primitive) {
+        frame_flush();
+    }
+
+    current_vertex_per_primitive = vertex_per_primitive;
 }
 
 void render_update_texture(Texture *texture, unsigned char *data) {
@@ -150,6 +164,8 @@ Texture texture_load_from_file(const char *file_path) {
         render_update_texture(&result, data);
 
         stbi_image_free(data);
+    } else {
+        print("Failed to load: %s\n", file_path);
     }
 
     return result;
@@ -176,6 +192,20 @@ void rendering_2d(int w, int h) {
        -1,      -1,       0,   1
     };
     glUniformMatrix4fv(projection_loc, 1, GL_FALSE, proj);
+}
+
+void draw_vertex(Vector2 p, Vector4 c) {
+    if (vertex_count > (MAX_VERTICES-1)) frame_flush();
+
+    Vertex *v = vertices + vertex_count;
+    v->position.x = p.x;
+    v->position.y = p.y;
+    v->position.z = 0;
+    v->uv.x       = 0;
+    v->uv.y       = 0;
+    v->color      = c;
+
+    vertex_count += 1;
 }
 
 void draw_quad(float x0, float y0, float x1, float y1, Vector4 c) {

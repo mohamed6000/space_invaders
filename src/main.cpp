@@ -7,6 +7,7 @@
 
 float ship_radius = 114.0f / 2.0f;
 Vector2 ship_position = {400, 60};
+int my_health = 3;
 
 struct Bullet {
     Vector2 position;
@@ -91,10 +92,10 @@ inline Bullet *invader_fire_bullet(Invader *invader) {
     bullet.velocity.x = 0;
     bullet.velocity.y = -240;
     if (random_get(0, 2)) {
-        bullet.velocity.y = -480;
+        bullet.velocity.y = -320;
     }
 
-    invader_bullet_countdown = 0.8f;
+    invader_bullet_countdown = 0.96f;
 
     if (bullet_count < array_count(bullets)) {
         Bullet *result = &bullets[bullet_count];
@@ -113,7 +114,13 @@ float distance(Vector2 p0, Vector2 p1) {
 }
 
 inline bool check_invaders_collision(Bullet *bullet) {
-    if (bullet->is_hostile) return false;
+    if (bullet->is_hostile) {
+        if (distance(ship_position, bullet->position) < (ship_radius*0.75f)) {
+            my_health -= 1;
+            return true;
+        }
+        return false;
+    }
 
     for (int index = 0; index < invaders_count; index++) {
         Invader *invader = &invaders[index];
@@ -135,6 +142,7 @@ int main(void) {
     Texture spaceship2 = texture_load_from_file("data/spaceship2.png");
     Texture bullet     = texture_load_from_file("data/bullet.png");
     Texture bullet2    = texture_load_from_file("data/bullet2.png");
+    Texture white      = texture_load_from_file("data/white_pixel.png");
 
     // Depth is mapped as near=-1 and far 1.
     glEnable(GL_DEPTH_TEST);
@@ -205,7 +213,7 @@ int main(void) {
             invader_bullet_countdown -= current_dt;
 
             int roll = random_get(0, 100);
-            if (roll < 60) {
+            if (roll < 50) {
                 invader_fire_bullet(it);
             }
         }
@@ -218,6 +226,8 @@ int main(void) {
         glClearColor(0.1f, 0.1f, 0.1f, 1);
         glClearDepth(1);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+        frame_begin();
 
         set_texture(&spaceship2);
 
@@ -236,18 +246,19 @@ int main(void) {
         }
 
         set_texture(&spaceship);
+        {
+            Vector2 p0;
+            p0.x = ship_position.x - ship_radius;
+            p0.y = ship_position.y - ship_radius;
 
-        Vector2 p0;
-        p0.x = ship_position.x - ship_radius;
-        p0.y = ship_position.y - ship_radius;
+            Vector2 p1;
+            p1.x = ship_position.x + ship_radius;
+            p1.y = ship_position.y + ship_radius;
 
-        Vector2 p1;
-        p1.x = ship_position.x + ship_radius;
-        p1.y = ship_position.y + ship_radius;
-
-        draw_quad(p0.x, p0.y, 
-                  p1.x, p1.y, 
-                  Vector4{1,1,1,1});
+            draw_quad(p0.x, p0.y, 
+                      p1.x, p1.y, 
+                      Vector4{1,1,1,1});
+        }
 
         for (int index = 0; index < bullet_count; index++) {
             Bullet *b = &bullets[index];
@@ -262,6 +273,86 @@ int main(void) {
                       b->position.x + 45.0f,
                       b->position.y + 45.0f,
                       Vector4{1,1,1,1});
+        }
+
+
+        // HUD.
+        set_texture(&white);
+        float yy = back_buffer_height * 0.9f;
+        for (int index = 0; index < my_health; index++) {
+            float x = 20.0f * index + 5.0f;
+            draw_quad(x, yy, x + 15.0f, yy + 15.0f, Vector4{1,1,1,1});
+        }
+
+
+        frame_begin(2);
+
+        for (int index = 0; index < invaders_count; index++) {
+            Invader *invader = &invaders[index];
+
+            Vector2 p0;
+            Vector2 p1;
+            Vector2 p2;
+            Vector2 p3;
+
+            Vector4 color = {1,0,0,1};
+
+            p0.x = invader->position.x - ship_radius;
+            p0.y = invader->position.y - ship_radius;
+
+            p1.x = invader->position.x + ship_radius;
+            p1.y = invader->position.y - ship_radius;
+
+            p2.x = invader->position.x + ship_radius;
+            p2.y = invader->position.y + ship_radius;
+
+            p3.x = invader->position.x - ship_radius;
+            p3.y = invader->position.y + ship_radius;
+
+            draw_vertex(p0, color);
+            draw_vertex(p1, color);
+
+            draw_vertex(p1, color);
+            draw_vertex(p2, color);
+
+            draw_vertex(p2, color);
+            draw_vertex(p3, color);
+
+            draw_vertex(p3, color);
+            draw_vertex(p0, color);
+        }
+
+        {
+            Vector4 color = {1,0,0,1};
+
+            Vector2 p0;
+            Vector2 p1;
+            Vector2 p2;
+            Vector2 p3;
+
+            p0.x = ship_position.x - ship_radius * 0.75f;
+            p0.y = ship_position.y - ship_radius * 0.75f;
+
+            p1.x = ship_position.x + ship_radius * 0.75f;
+            p1.y = ship_position.y - ship_radius * 0.75f;
+
+            p2.x = ship_position.x + ship_radius * 0.75f;
+            p2.y = ship_position.y + ship_radius * 0.75f;
+
+            p3.x = ship_position.x - ship_radius * 0.75f;
+            p3.y = ship_position.y + ship_radius * 0.75f;
+
+            draw_vertex(p0, color);
+            draw_vertex(p1, color);
+
+            draw_vertex(p1, color);
+            draw_vertex(p2, color);
+
+            draw_vertex(p2, color);
+            draw_vertex(p3, color);
+
+            draw_vertex(p3, color);
+            draw_vertex(p0, color);
         }
 
         frame_flush();
