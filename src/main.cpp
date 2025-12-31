@@ -326,6 +326,8 @@ void simulate_gameplay(float dt) {
     }
 
     if (invaders_count == 0) {
+        bullet_countdown = 0.1f;
+
         if (!bullet_count && !pickup_count) {
             // Give the player a bit of time before respawning.
             spawn_invaders();
