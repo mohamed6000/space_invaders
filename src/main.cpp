@@ -10,6 +10,9 @@ float pickup_radius   = 114.0f / 2.0f;
 float bullet_radius   = 45.0f / 2.0f;
 Vector2 ship_position = {400, 60};
 
+bool has_force_shield = false;
+float force_shield_countdown = 0;
+
 int my_health  = 3;
 int max_health = 5;
 
@@ -144,7 +147,7 @@ float distance(Vector2 p0, Vector2 p1) {
 inline bool check_invaders_collision(Bullet *bullet) {
     if (bullet->is_hostile) {
         if (distance(ship_position, bullet->position) < (ship_radius*0.75f)) {
-            my_health -= 1;
+            if (!has_force_shield) my_health -= 1;
             return true;
         }
         return false;
@@ -212,6 +215,7 @@ int main(void) {
     Texture bullet2    = texture_load_from_file("data/bullet2.png");
     Texture missile    = texture_load_from_file("data/missile.png");
     Texture white      = texture_load_from_file("data/white_pixel.png");
+    Texture force_shield = texture_load_from_file("data/force_shield.png");
     
     // Pickups.
     Texture pickup1   = texture_load_from_file("data/pickup1.png");
@@ -273,6 +277,9 @@ int main(void) {
         if (ship_position.x < x0) ship_position.x = x0;
         if (ship_position.x > x1) ship_position.x = x1;
 
+        force_shield_countdown -= current_dt;
+        if (force_shield_countdown <= 0) has_force_shield = false;
+
 
 
         for (int index = 0; index < invaders_count; index++) {
@@ -329,7 +336,8 @@ int main(void) {
                 } else if (it->type == PICKUP_THREE) {
                     shot_type = SHOT_TRIPLE;
                 } else if (it->type == PICKUP_ONE) {
-                    // @Todo: add force shield.
+                    has_force_shield = true;
+                    force_shield_countdown = 5.0f;
                 }
 
                 // Remove the pickup.
@@ -382,6 +390,13 @@ int main(void) {
             draw_quad(p0.x, p0.y, 
                       p1.x, p1.y, 
                       Vector4{1,1,1,1});
+
+            if (has_force_shield) {
+                set_texture(&force_shield);
+                draw_quad(p0.x, p0.y,
+                          p1.x, p1.y,
+                          Vector4{1,1,1,1});
+            }
         }
 
         for (int index = 0; index < pickup_count; index++) {
