@@ -94,13 +94,13 @@ inline void spawn_invaders(void) {
 inline Bullet *fire_bullet(Vector2 position) {
     Bullet bullet;
     bullet.is_hostile = false;
-    bullet.position.x = position.x - bullet_radius;
+    bullet.position.x = position.x;
     bullet.position.y = position.y;
     bullet.velocity.x = 0;
     bullet.velocity.y = 280;
     bullet.type = SHOT_SINGLE;
 
-    bullet_countdown = 0.22f;
+    bullet_countdown = 0.42f;
 
     if (bullet_count < array_count(bullets)) {
         Bullet *result = &bullets[bullet_count];
@@ -118,8 +118,8 @@ inline Bullet *invader_fire_bullet(Invader *invader) {
 
     Bullet bullet;
     bullet.is_hostile = true;
-    bullet.position.x = invader->position.x - bullet_radius;
-    bullet.position.y = invader->position.y - ship_radius;
+    bullet.position.x = invader->position.x;
+    bullet.position.y = invader->position.y;// - ship_radius;
     bullet.velocity.x = 0;
     bullet.velocity.y = -240;
     if (random_get(0, 2)) {
@@ -256,11 +256,11 @@ int main(void) {
                 Bullet *b1 = fire_bullet(ship_position);
                 Bullet *b2 = fire_bullet(ship_position);
 
-                b1->position.x = ship_position.x - (ship_radius * 0.75f) - bullet_radius;
+                b1->position.x = ship_position.x - (ship_radius * 0.75f);
                 b1->velocity.y = 220.0f;
                 b1->type = SHOT_DOUBLE;
 
-                b2->position.x = ship_position.x + (ship_radius * 0.75f) - bullet_radius;
+                b2->position.x = ship_position.x + (ship_radius * 0.75f);
                 b2->velocity.y = 220.0f;
                 b2->type = SHOT_DOUBLE;
             }
@@ -423,10 +423,10 @@ int main(void) {
                 else assert(false);
             }
 
-            draw_quad(b->position.x,
-                      b->position.y,
-                      b->position.x + 45.0f,
-                      b->position.y + 45.0f,
+            draw_quad(b->position.x - bullet_radius,
+                      b->position.y - bullet_radius,
+                      b->position.x + bullet_radius,
+                      b->position.y + bullet_radius,
                       Vector4{1,1,1,1});
         }
 
@@ -440,6 +440,7 @@ int main(void) {
         }
 
         // Debug shapes.
+#if 0
         frame_begin(2);
 
         for (int index = 0; index < invaders_count; index++) {
@@ -449,11 +450,12 @@ int main(void) {
         }
 
         imm_draw_circle(ship_position, ship_radius * 0.75f, {1,0,0,1});
+#endif
 
         frame_flush();
         swap_buffers(window);
 
-        Sleep(1);
+        // Sleep(1);
     }
 
     free_window_and_opengl(window);
