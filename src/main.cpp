@@ -5,7 +5,8 @@
 
 #include "framework.cpp"
 
-float ship_radius = 114.0f / 2.0f;
+float ship_radius     = 114.0f / 2.0f;
+float pickup_radius   = 114.0f / 2.0f;
 Vector2 ship_position = {400, 60};
 int my_health = 3;
 
@@ -28,6 +29,22 @@ float invader_bullet_countdown;
 
 Invader invaders[256];
 int invaders_count = 0;
+
+enum Pickup_Type {
+    PICKUP_ONE   = 0,
+    PICKUP_TWO   = 1,
+    PICKUP_THREE = 2,
+    PICKUP_HP    = 3,
+};
+
+struct Pickup {
+    Vector2 position;
+    Vector2 velocity;
+    int type;
+};
+
+Pickup pickups[256];
+int pickup_count = 0;
 
 inline int random_get(int min_value, int max_value) {
     int result = rand() % (max_value - min_value + 1) + min_value;
@@ -127,8 +144,24 @@ inline bool check_invaders_collision(Bullet *bullet) {
         Invader *invader = &invaders[index];
 
         if (distance(invader->position, bullet->position) < ship_radius) {
+            int roll = random_get(0, 100);
+            if (roll < 60) {
+                // Drop items.
+                if (pickup_count < array_count(pickups)) {
+                    Pickup *p = &pickups[pickup_count];
+                    pickup_count += 1;
+
+                    p->position.x = invader->position.x;
+                    p->position.y = invader->position.y;
+                    p->velocity.x = 0;
+                    p->velocity.y = -230.0f;
+                    p->type = random_get(0, 3);
+                }
+            }
+
             invaders[index] = invaders[invaders_count-1];
             invaders_count -= 1;
+
             return true;
         }
     }
@@ -167,6 +200,14 @@ int main(void) {
     Texture bullet     = texture_load_from_file("data/bullet.png");
     Texture bullet2    = texture_load_from_file("data/bullet2.png");
     Texture white      = texture_load_from_file("data/white_pixel.png");
+    
+    // Pickups.
+    Texture pickup1   = texture_load_from_file("data/pickup1.png");
+    Texture pickup2   = texture_load_from_file("data/pickup2.png");
+    Texture pickup3   = texture_load_from_file("data/pickup3.png");
+    Texture pickup_hp = texture_load_from_file("data/pickup4.png");
+
+    Texture *texture_pickups[4] = {&pickup1, &pickup2, &pickup3, &pickup_hp};
 
     // Depth is mapped as near=-1 and far 1.
     glEnable(GL_DEPTH_TEST);
@@ -208,23 +249,6 @@ int main(void) {
 
 
 
-        bullet_countdown -= current_dt;
-        if (bullet_countdown <= 0) bullet_countdown = 0;
-
-        for (int index = 0; index < bullet_count; index++) {
-            Bullet *b = &bullets[index];
-            b->position.x += b->velocity.x * current_dt;
-            b->position.y += b->velocity.y * current_dt;
-
-            if (check_invaders_collision(b) || 
-                (b->position.y > back_buffer_height)) {
-                // Remove bullet outside of the view.
-                bullets[index] = bullets[bullet_count-1];
-                bullet_count -= 1;
-            }
-        }
-
-
         for (int index = 0; index < invaders_count; index++) {
             Invader *it = &invaders[index];
             it->position.x += it->velocity.x * current_dt;
@@ -245,6 +269,39 @@ int main(void) {
                 }
 
                 it->sleep_cooldown = 0.55f;
+            }
+        }
+
+        bullet_countdown -= current_dt;
+        if (bullet_countdown <= 0) bullet_countdown = 0;
+
+        for (int index = 0; index < bullet_count; index++) {
+            Bullet *b = &bullets[index];
+            b->position.x += b->velocity.x * current_dt;
+            b->position.y += b->velocity.y * current_dt;
+
+            if (check_invaders_collision(b) || 
+                (b->position.y > back_buffer_height)) {
+                // Remove bullet outside of the view.
+                bullets[index] = bullets[bullet_count-1];
+                bullet_count -= 1;
+            }
+        }
+
+
+        for (int index = 0; index < pickup_count; index++) {
+            Pickup *it = &pickups[index];
+            it->position.x += it->velocity.x * current_dt;
+            it->position.y += it->velocity.y * current_dt;
+
+            if (distance(ship_position, it->position) < ship_radius) {
+                if (it->type == PICKUP_HP) {
+                    my_health += 1;
+                } 
+
+                // Remove the pickup.
+                pickups[index] = pickups[pickup_count];
+                pickup_count -= 1;
             }
         }
 
@@ -290,6 +347,18 @@ int main(void) {
                       Vector4{1,1,1,1});
         }
 
+        for (int index = 0; index < pickup_count; index++) {
+            Pickup *it = &pickups[index];
+
+            set_texture(texture_pickups[it->type]);
+            
+            draw_quad(it->position.x - pickup_radius, 
+                      it->position.y - pickup_radius, 
+                      it->position.x + pickup_radius, 
+                      it->position.y + pickup_radius,
+                      Vector4{1,1,1,1});
+        }
+
         for (int index = 0; index < bullet_count; index++) {
             Bullet *b = &bullets[index];
             if (b->is_hostile) {
@@ -314,7 +383,7 @@ int main(void) {
             draw_quad(x, yy, x + 15.0f, yy + 15.0f, Vector4{1,1,1,1});
         }
 
-
+        // Debug shapes.
         frame_begin(2);
 
         for (int index = 0; index < invaders_count; index++) {
