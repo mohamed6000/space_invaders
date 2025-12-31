@@ -206,6 +206,7 @@ int main(void) {
     auto window = init_window_and_opengl("Space Invaders", 800, 600);
 
     Texture spaceship  = texture_load_from_file("data/spaceship.png");
+    Texture spaceship_upgrade = texture_load_from_file("data/spaceship_upgrade.png");
     Texture spaceship2 = texture_load_from_file("data/spaceship2.png");
     Texture bullet     = texture_load_from_file("data/bullet.png");
     Texture bullet2    = texture_load_from_file("data/bullet2.png");
@@ -364,8 +365,12 @@ int main(void) {
             draw_quad(p0.x, p0.y, p1.x, p1.y, Vector4{1,1,1,1});
         }
 
-        set_texture(&spaceship);
         {
+            if (shot_type == SHOT_SINGLE)
+                set_texture(&spaceship);
+            else
+                set_texture(&spaceship_upgrade);
+            
             Vector2 p0;
             p0.x = ship_position.x - ship_radius;
             p0.y = ship_position.y - ship_radius;
