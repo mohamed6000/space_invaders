@@ -7,13 +7,24 @@
 
 float ship_radius     = 114.0f / 2.0f;
 float pickup_radius   = 114.0f / 2.0f;
+float bullet_radius   = 45.0f / 2.0f;
 Vector2 ship_position = {400, 60};
-int my_health = 3;
+
+int my_health  = 3;
+int max_health = 5;
+
+enum Shot_Type {
+    SHOT_SINGLE = 0,
+    SHOT_DOUBLE = 1,
+    SHOT_TRIPLE = 2,
+};
+int shot_type = SHOT_SINGLE;
 
 struct Bullet {
     Vector2 position;
     Vector2 velocity;
     bool is_hostile;
+    int type;
 };
 
 Bullet bullets[256];
@@ -78,14 +89,13 @@ inline void spawn_invaders(void) {
 }
 
 inline Bullet *fire_bullet(Vector2 position) {
-    if (bullet_countdown > 0) return null;
-
     Bullet bullet;
     bullet.is_hostile = false;
-    bullet.position.x = position.x - 45.0f/2.0f;
+    bullet.position.x = position.x - bullet_radius;
     bullet.position.y = position.y;
     bullet.velocity.x = 0;
     bullet.velocity.y = 280;
+    bullet.type = SHOT_SINGLE;
 
     bullet_countdown = 0.22f;
 
@@ -105,8 +115,8 @@ inline Bullet *invader_fire_bullet(Invader *invader) {
 
     Bullet bullet;
     bullet.is_hostile = true;
-    bullet.position.x = invader->position.x - 45.0f/2.0f;
-    bullet.position.y = invader->position.y - ship_radius;;
+    bullet.position.x = invader->position.x - bullet_radius;
+    bullet.position.y = invader->position.y - ship_radius;
     bullet.velocity.x = 0;
     bullet.velocity.y = -240;
     if (random_get(0, 2)) {
@@ -199,6 +209,7 @@ int main(void) {
     Texture spaceship2 = texture_load_from_file("data/spaceship2.png");
     Texture bullet     = texture_load_from_file("data/bullet.png");
     Texture bullet2    = texture_load_from_file("data/bullet2.png");
+    Texture missile    = texture_load_from_file("data/missile.png");
     Texture white      = texture_load_from_file("data/white_pixel.png");
     
     // Pickups.
@@ -232,8 +243,22 @@ int main(void) {
             should_quit = true;
         }
 
-        if (key_fire.is_down) {
-            fire_bullet(ship_position);
+        if (key_fire.is_down && (bullet_countdown <= 0)) {
+            if ((shot_type == SHOT_SINGLE) || (shot_type == SHOT_TRIPLE)) {
+                fire_bullet(ship_position);
+            }
+            if ((shot_type == SHOT_DOUBLE) || (shot_type == SHOT_TRIPLE)) {
+                Bullet *b1 = fire_bullet(ship_position);
+                Bullet *b2 = fire_bullet(ship_position);
+
+                b1->position.x = ship_position.x - (ship_radius * 0.75f) - bullet_radius;
+                b1->velocity.y = 220.0f;
+                b1->type = SHOT_DOUBLE;
+
+                b2->position.x = ship_position.x + (ship_radius * 0.75f) - bullet_radius;
+                b2->velocity.y = 220.0f;
+                b2->type = SHOT_DOUBLE;
+            }
         }
 
         float dx = 240.0f * current_dt;
@@ -297,10 +322,17 @@ int main(void) {
             if (distance(ship_position, it->position) < ship_radius) {
                 if (it->type == PICKUP_HP) {
                     my_health += 1;
-                } 
+                    if (my_health > max_health) my_health = max_health;
+                } else if (it->type == PICKUP_TWO) {
+                    shot_type = SHOT_DOUBLE;
+                } else if (it->type == PICKUP_THREE) {
+                    shot_type = SHOT_TRIPLE;
+                } else if (it->type == PICKUP_ONE) {
+                    // @Todo: add force shield.
+                }
 
                 // Remove the pickup.
-                pickups[index] = pickups[pickup_count];
+                pickups[index] = pickups[pickup_count-1];
                 pickup_count -= 1;
             }
         }
@@ -364,7 +396,11 @@ int main(void) {
             if (b->is_hostile) {
                 set_texture(&bullet2);
             } else {
-                set_texture(&bullet);
+                if (b->type == SHOT_SINGLE)
+                    set_texture(&bullet);
+                else if (b->type == SHOT_DOUBLE)
+                    set_texture(&missile);
+                else assert(false);
             }
 
             draw_quad(b->position.x,
