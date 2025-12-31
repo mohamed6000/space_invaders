@@ -286,7 +286,8 @@ void simulate_gameplay(float dt) {
         b->position.y += b->velocity.y * dt;
 
         if (check_invaders_collision(b) || 
-            (b->position.y > back_buffer_height)) {
+            (b->position.y > back_buffer_height) ||
+            (b->position.y < 0)) {
             // Remove bullet outside of the view.
             bullets[index] = bullets[bullet_count-1];
             bullet_count -= 1;
@@ -298,6 +299,12 @@ void simulate_gameplay(float dt) {
         Pickup *it = &pickups[index];
         it->position.x += it->velocity.x * dt;
         it->position.y += it->velocity.y * dt;
+
+        if (it->position.y < 0) {
+            // Remove the pickup.
+            pickups[index] = pickups[pickup_count-1];
+            pickup_count -= 1;
+        }
 
         if (distance(ship_position, it->position) < ship_radius) {
             if (it->type == PICKUP_HP) {
@@ -315,6 +322,14 @@ void simulate_gameplay(float dt) {
             // Remove the pickup.
             pickups[index] = pickups[pickup_count-1];
             pickup_count -= 1;
+        }
+    }
+
+    if (invaders_count == 0) {
+        if (!bullet_count && !pickup_count) {
+            // Give the player a bit of time before respawning.
+            spawn_invaders();
+            level_state = LEVEL_ENEMY_INTRO;
         }
     }
 }
