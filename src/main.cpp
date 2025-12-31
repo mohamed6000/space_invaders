@@ -22,6 +22,7 @@ float bullet_countdown = 0;
 struct Invader {
     Vector2 position;
     Vector2 velocity;
+    float sleep_cooldown;
 };
 float invader_bullet_countdown;
 
@@ -231,13 +232,19 @@ int main(void) {
 
             if ((it->position.x > x1) || (it->position.x < x0)) {
                 it->velocity.x = -it->velocity.x;
+                it->position.x += it->velocity.x * current_dt;
             }
 
             invader_bullet_countdown -= current_dt;
+            it->sleep_cooldown       -= current_dt;
 
-            int roll = random_get(0, 100);
-            if (roll < 50) {
-                invader_fire_bullet(it);
+            if (it->sleep_cooldown <= 0) {
+                int roll = random_get(0, 100);
+                if (roll < 50) {
+                    invader_fire_bullet(it);
+                }
+
+                it->sleep_cooldown = 0.55f;
             }
         }
 
