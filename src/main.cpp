@@ -83,24 +83,29 @@ inline float random_get_float(float x) {
 inline void spawn_invaders(void) {
     invaders_count = random_get(6, 10);
 
-    float x0 = 0.1f * back_buffer_width;
-    float x1 = back_buffer_width - x0;
-    float y0 = 0.55f * back_buffer_height;
-    float y1 = 0.9f  * back_buffer_height;
+    int x0 = (int)(0.1f * back_buffer_width);
+    int x1 = (int)(back_buffer_width - x0);
+    int y0 = (int)(0.55f * back_buffer_height);
+    int y1 = (int)(0.9f  * back_buffer_height);
 
-    float min_speed = 80.0f;
-    float max_speed = 180.0f;
+    int min_speed = 80;
+    int max_speed = 180;
 
     for (int index = 0; index < invaders_count; index++) {
         Invader *invader = &invaders[index];
 
-        invader->destination.x = x0 + random_get_float(x1-x0);
-        invader->destination.y = y0 + random_get_float(y1-y0);
+        invader->destination.x = (float)random_get(x0, x1);
+        invader->destination.y = (float)random_get(y0, y1);
 
         invader->position.x = invader->destination.x;
         invader->position.y = y1 + invader->destination.y;
 
-        invader->velocity.x = min_speed + random_get_float(max_speed-min_speed);
+        if (random_get(0, 2)) {
+            invader->velocity.x = -(float)random_get(min_speed, max_speed);
+        } else {
+            invader->velocity.x =  (float)random_get(min_speed, max_speed);
+        }
+
         invader->velocity.y = 0;
     }
 }
