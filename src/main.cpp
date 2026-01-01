@@ -11,6 +11,9 @@ float bullet_radius   = 45.0f / 2.0f;
 Vector2 ship_position = {400, 60};
 
 Vector2 global_scroll;
+Vector2 screen_shake;
+float   shake_angle;
+float   shake_radius = 1.0f;
 
 bool has_force_shield = false;
 float force_shield_countdown = 0;
@@ -168,7 +171,10 @@ float distance(Vector2 p0, Vector2 p1) {
 inline bool check_invaders_collision(Bullet *bullet) {
     if (bullet->is_hostile) {
         if (distance(ship_position, bullet->position) < (ship_radius*0.75f)) {
-            if (!has_force_shield) my_health -= 1;
+            if (!has_force_shield) {
+                my_health -= 1;
+                shake_radius = 2.0f;
+            }
             return true;
         }
         return false;
@@ -347,6 +353,14 @@ void simulate_gameplay(float dt) {
             level_state = LEVEL_ENEMY_INTRO;
         }
     }
+
+    screen_shake = {0, 0};
+    if (shake_radius > 1) {
+        screen_shake.x = sinf(shake_angle) * shake_radius * dt;
+        screen_shake.y = cosf(shake_angle) * shake_radius * dt;
+        shake_radius -= 5.0f * dt;
+        shake_angle += 0.5f + random_get_float(1.5f - 0.5f);
+    }
 }
 
 int main(void) {
@@ -361,7 +375,7 @@ int main(void) {
     Texture white      = texture_load_from_file("data/white_pixel.png");
     Texture force_shield = texture_load_from_file("data/force_shield.png");
     Texture background = texture_load_from_file("data/background.png");
-    
+
     // Pickups.
     Texture pickup1   = texture_load_from_file("data/pickup1.png");
     Texture pickup2   = texture_load_from_file("data/pickup2.png");
@@ -399,7 +413,7 @@ int main(void) {
             simulate_gameplay(current_dt);
         } else if (level_state == LEVEL_ENEMY_INTRO) {
             all_introduced_invaders = true;
-            global_scroll.y -= 0.55f * current_dt;
+            global_scroll.y -= 0.88f * current_dt;
 
             for (int index = 0; index < invaders_count; index++) {
                 Invader *it = &invaders[index];
@@ -420,7 +434,7 @@ int main(void) {
 
         glViewport(0, 0, back_buffer_width, back_buffer_height);
         
-        rendering_2d(back_buffer_width, back_buffer_height);
+        rendering_2d(back_buffer_width, back_buffer_height, screen_shake.x, screen_shake.y);
 
         glClearColor(0.1f, 0.1f, 0.1f, 1);
         glClearDepth(1);
@@ -428,9 +442,17 @@ int main(void) {
 
         frame_begin();
 
+        // Background
         {
             set_texture(&background);
-            draw_quad(0, 0, (float)back_buffer_width, (float)back_buffer_height, 
+            
+            float x0 = -(back_buffer_width * 0.25f);
+            float x1 =  (back_buffer_width * 1.25f);
+
+            float y0 = -(back_buffer_height * 0.25f);
+            float y1 =  (back_buffer_height * 1.25f);
+
+            draw_quad(x0, y0, x1, y1, 
                       global_scroll.x, global_scroll.y, 
                       global_scroll.x + 1, global_scroll.y + 1, 
                       Vector4{1,1,1,1});

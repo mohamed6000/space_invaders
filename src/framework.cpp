@@ -184,12 +184,12 @@ void set_texture(Texture *texture) {
     last_bound_texture_id = texture->id;
 }
 
-void rendering_2d(int w, int h) {
+void rendering_2d(int w, int h, float x = 0, float y = 0) {
     float proj[16] = {
         2.0f/w,  0,       0,   0,
         0,       2.0f/h,  0,   0,
         0,       0,       1,   0,
-       -1,      -1,       0,   1
+        x-1,       y-1,       0,   1
     };
     glUniformMatrix4fv(projection_loc, 1, GL_FALSE, proj);
 }
