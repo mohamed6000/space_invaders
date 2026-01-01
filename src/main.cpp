@@ -20,6 +20,7 @@ float force_shield_countdown = 0;
 
 int my_health  = 3;
 int max_health = 5;
+bool is_alive = true;
 
 enum Shot_Type {
     SHOT_SINGLE = 0,
@@ -169,10 +170,13 @@ float distance(Vector2 p0, Vector2 p1) {
 }
 
 inline bool check_invaders_collision(Bullet *bullet) {
+    if (!is_alive) return false;
+
     if (bullet->is_hostile) {
         if (distance(ship_position, bullet->position) < (ship_radius*0.75f)) {
             if (!has_force_shield) {
                 my_health -= 1;
+                if (my_health <= 0) is_alive = false;
                 shake_radius = 2.0f;
             }
             return true;
@@ -233,7 +237,7 @@ inline void imm_draw_circle(Vector2 center, float radius, Vector4 color, int seg
 }
 
 void simulate_gameplay(float dt) {
-    if (key_fire.is_down && (bullet_countdown <= 0)) {
+    if (key_fire.is_down && (bullet_countdown <= 0) && is_alive) {
         if ((shot_type == SHOT_SINGLE) || (shot_type == SHOT_TRIPLE)) {
             fire_bullet(ship_position);
         }
@@ -253,13 +257,15 @@ void simulate_gameplay(float dt) {
 
     float dx = 240.0f * dt;
 
-    if (key_left.is_down) { 
-        ship_position.x -= dx;
-        global_scroll.x -= 0.1f * dt;
-    }
-    if (key_right.is_down) {
-        ship_position.x += dx;
-        global_scroll.x += 0.1f * dt;
+    if (is_alive) {
+        if (key_left.is_down) { 
+            ship_position.x -= dx;
+            global_scroll.x -= 0.1f * dt;
+        }
+        if (key_right.is_down) {
+            ship_position.x += dx;
+            global_scroll.x += 0.1f * dt;
+        }
     }
 
     float x0 = 0.8f * ship_radius;
@@ -487,7 +493,7 @@ int main(void) {
             draw_quad(p0.x, p0.y, p1.x, p1.y, 0, 1, 1, 0, Vector4{1,1,1,1});
         }
 
-        {
+        if (is_alive) {
             if (shot_type == SHOT_SINGLE)
                 set_texture(&spaceship);
             else
