@@ -45,6 +45,7 @@ struct Invader {
     Vector2 velocity;
     Vector2 destination;
     float sleep_cooldown;
+    int texture_index;
 };
 float invader_bullet_countdown;
 
@@ -114,6 +115,8 @@ inline void spawn_invaders(int level) {
         }
 
         invader->velocity.y = 0;
+
+        invader->texture_index = random_get(0, 3);
     }
 }
 
@@ -382,6 +385,9 @@ int main(void) {
     Texture spaceship  = texture_load_from_file("data/spaceship.png");
     Texture spaceship_upgrade = texture_load_from_file("data/spaceship_upgrade.png");
     Texture spaceship2 = texture_load_from_file("data/spaceship2.png");
+    Texture spaceship3 = texture_load_from_file("data/spaceship3.png");
+    Texture spaceship4 = texture_load_from_file("data/spaceship4.png");
+    Texture spaceship5 = texture_load_from_file("data/spaceship5.png");
     Texture bullet     = texture_load_from_file("data/bullet.png");
     Texture bullet2    = texture_load_from_file("data/bullet2.png");
     Texture missile    = texture_load_from_file("data/missile.png");
@@ -397,6 +403,7 @@ int main(void) {
     Texture pickup_hp = texture_load_from_file("data/pickup4.png");
 
     Texture *texture_pickups[4] = {&pickup1, &pickup2, &pickup3, &pickup_hp};
+    Texture *invader_ships[4] = {&spaceship2, &spaceship3, &spaceship4, &spaceship5};
 
     // Depth is mapped as near=-1 and far 1.
     glEnable(GL_DEPTH_TEST);
@@ -484,10 +491,11 @@ int main(void) {
                       Vector4{1,1,1,1});
         }
 
-        set_texture(&spaceship2);
 
         for (int index = 0; index < invaders_count; index++) {
             Invader *invader = &invaders[index];
+            
+            set_texture(invader_ships[invader->texture_index]);
 
             Vector2 p0;
             p0.x = invader->position.x - ship_radius;
