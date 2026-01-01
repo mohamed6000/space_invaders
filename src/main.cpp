@@ -10,6 +10,8 @@ float pickup_radius   = 114.0f / 2.0f;
 float bullet_radius   = 45.0f / 2.0f;
 Vector2 ship_position = {400, 60};
 
+Vector2 global_scroll;
+
 bool has_force_shield = false;
 float force_shield_countdown = 0;
 
@@ -85,7 +87,7 @@ inline void spawn_invaders(void) {
 
     int x0 = (int)(0.1f * back_buffer_width);
     int x1 = (int)(back_buffer_width - x0);
-    int y0 = (int)(0.55f * back_buffer_height);
+    int y0 = (int)(0.6f * back_buffer_height);
     int y1 = (int)(0.9f  * back_buffer_height);
 
     int min_speed = 80;
@@ -245,8 +247,14 @@ void simulate_gameplay(float dt) {
 
     float dx = 240.0f * dt;
 
-    if (key_left.is_down)  ship_position.x -= dx;
-    if (key_right.is_down) ship_position.x += dx;
+    if (key_left.is_down) { 
+        ship_position.x -= dx;
+        global_scroll.x -= 0.1f * dt;
+    }
+    if (key_right.is_down) {
+        ship_position.x += dx;
+        global_scroll.x += 0.1f * dt;
+    }
 
     float x0 = 0.8f * ship_radius;
     float x1 = back_buffer_width - x0;
@@ -352,6 +360,7 @@ int main(void) {
     Texture missile    = texture_load_from_file("data/missile.png");
     Texture white      = texture_load_from_file("data/white_pixel.png");
     Texture force_shield = texture_load_from_file("data/force_shield.png");
+    Texture background = texture_load_from_file("data/background.png");
     
     // Pickups.
     Texture pickup1   = texture_load_from_file("data/pickup1.png");
@@ -385,9 +394,12 @@ int main(void) {
         }
 
         if (level_state == LEVEL_GAMEPLAY) {
+            global_scroll.y -= 0.22f * current_dt;
+
             simulate_gameplay(current_dt);
         } else if (level_state == LEVEL_ENEMY_INTRO) {
             all_introduced_invaders = true;
+            global_scroll.y -= 0.55f * current_dt;
 
             for (int index = 0; index < invaders_count; index++) {
                 Invader *it = &invaders[index];
@@ -403,6 +415,8 @@ int main(void) {
             }
         }
 
+        if (global_scroll.y >= 1) global_scroll.y = 0;
+
 
         glViewport(0, 0, back_buffer_width, back_buffer_height);
         
@@ -413,6 +427,14 @@ int main(void) {
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
         frame_begin();
+
+        {
+            set_texture(&background);
+            draw_quad(0, 0, (float)back_buffer_width, (float)back_buffer_height, 
+                      global_scroll.x, global_scroll.y, 
+                      global_scroll.x + 1, global_scroll.y + 1, 
+                      Vector4{1,1,1,1});
+        }
 
         set_texture(&spaceship2);
 
@@ -513,6 +535,8 @@ int main(void) {
 
         frame_flush();
         swap_buffers(window);
+
+        Sleep(1);
     }
 
     free_window_and_opengl(window);
