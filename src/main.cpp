@@ -75,6 +75,7 @@ enum Level_State {
 };
 
 Level_State level_state = LEVEL_ENEMY_INTRO;
+int level_index = 1;
 
 inline int random_get(int min_value, int max_value) {
     int result = rand() % (max_value - min_value + 1) + min_value;
@@ -86,8 +87,8 @@ inline float random_get_float(float x) {
     return result;
 }
 
-inline void spawn_invaders(void) {
-    invaders_count = random_get(6, 10);
+inline void spawn_invaders(int level) {
+    invaders_count = random_get(6, 10 + 1 * level);
 
     int x0 = (int)(0.1f * back_buffer_width);
     int x1 = (int)(back_buffer_width - x0);
@@ -355,7 +356,13 @@ void simulate_gameplay(float dt) {
 
         if (!bullet_count && !pickup_count) {
             // Give the player a bit of time before respawning.
-            spawn_invaders();
+
+            level_index += 1;
+            if ((level_index % 10) == 0) max_health += 1;
+
+            print("Level: %d (max_health = %d)\n", level_index, max_health);
+
+            spawn_invaders(level_index);
             level_state = LEVEL_ENEMY_INTRO;
         }
     }
@@ -398,7 +405,7 @@ int main(void) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    spawn_invaders();
+    spawn_invaders(level_index);
 
     float64 last_counter = 0;
 
