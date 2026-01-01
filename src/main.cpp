@@ -375,6 +375,7 @@ int main(void) {
     Texture white      = texture_load_from_file("data/white_pixel.png");
     Texture force_shield = texture_load_from_file("data/force_shield.png");
     Texture background = texture_load_from_file("data/background.png");
+    Texture mid        = texture_load_from_file("data/mid.png");
 
     // Pickups.
     Texture pickup1   = texture_load_from_file("data/pickup1.png");
@@ -444,17 +445,29 @@ int main(void) {
 
         // Background
         {
-            set_texture(&background);
-            
             float x0 = -(back_buffer_width * 0.25f);
             float x1 =  (back_buffer_width * 1.25f);
 
             float y0 = -(back_buffer_height * 0.25f);
             float y1 =  (back_buffer_height * 1.25f);
 
+            set_texture(&background);
             draw_quad(x0, y0, x1, y1, 
                       global_scroll.x, global_scroll.y, 
                       global_scroll.x + 1, global_scroll.y + 1, 
+                      Vector4{1,1,1,1});
+
+            x0 = 0;
+            x1 = (float)back_buffer_width;
+
+            y0 = 0;
+            y1 = (float)back_buffer_height;
+
+            set_texture(&mid);
+            float speed0 = 0.4f;
+            draw_quad(x0, y0, x1, y1, 
+                      global_scroll.x * speed0,     global_scroll.y * speed0, 
+                      global_scroll.x * speed0 + 1, global_scroll.y * speed0 + 1, 
                       Vector4{1,1,1,1});
         }
 
