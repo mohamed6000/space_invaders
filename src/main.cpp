@@ -21,6 +21,7 @@ float force_shield_countdown = 0;
 int my_health  = 3;
 int max_health = 5;
 bool is_alive = true;
+s64 my_score = 0;
 
 enum Shot_Type {
     SHOT_SINGLE = 0,
@@ -180,7 +181,10 @@ inline bool check_invaders_collision(Bullet *bullet) {
         if (distance(ship_position, bullet->position) < (ship_radius*0.75f)) {
             if (!has_force_shield) {
                 my_health -= 1;
-                if (my_health <= 0) is_alive = false;
+                if (my_health <= 0) {
+                    is_alive = false;
+                    print("Game Over: You have %lld points\n", my_score);
+                }
                 shake_radius = 2.0f;
             }
             return true;
@@ -209,6 +213,8 @@ inline bool check_invaders_collision(Bullet *bullet) {
 
             invaders[index] = invaders[invaders_count-1];
             invaders_count -= 1;
+
+            my_score += 10;
 
             return true;
         }
@@ -351,6 +357,8 @@ void simulate_gameplay(float dt) {
             // Remove the pickup.
             pickups[index] = pickups[pickup_count-1];
             pickup_count -= 1;
+
+            my_score += 10;
         }
     }
 
