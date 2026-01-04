@@ -214,7 +214,14 @@ inline bool check_invaders_collision(Bullet *bullet) {
             invaders[index] = invaders[invaders_count-1];
             invaders_count -= 1;
 
-            my_score += 10;
+            if (invader->texture_index == 0)
+                my_score += 10;
+            else if (invader->texture_index == 1)
+                my_score += 20;
+            else if (invader->texture_index == 2)
+                my_score += 30;
+            else if (invader->texture_index == 3)
+                my_score += 35;
 
             return true;
         }
