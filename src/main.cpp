@@ -313,7 +313,7 @@ void simulate_gameplay(float dt) {
         invader_bullet_countdown -= dt;
         it->sleep_cooldown       -= dt;
 
-        if (it->sleep_cooldown <= 0) {
+        if (is_alive && (it->sleep_cooldown <= 0)) {
             int roll = random_get(0, 100);
             if (roll < 50) {
                 invader_fire_bullet(it);
