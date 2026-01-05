@@ -1,9 +1,9 @@
 #include "general.h"
 #include <math.h>
 
+#include "framework.h"
 #include "stb_image.h"
 
-#include "framework.cpp"
 
 float ship_radius     = 114.0f / 2.0f;
 float pickup_radius   = 114.0f / 2.0f;
@@ -132,7 +132,7 @@ inline Bullet *fire_bullet(Vector2 position) {
 
     bullet_countdown = 0.42f;
 
-    if (bullet_count < array_count(bullets)) {
+    if (bullet_count < (s64)(array_count(bullets))) {
         Bullet *result = &bullets[bullet_count];
         bullet_count += 1;
 
@@ -158,7 +158,7 @@ inline Bullet *invader_fire_bullet(Invader *invader) {
 
     invader_bullet_countdown = 0.96f;
 
-    if (bullet_count < array_count(bullets)) {
+    if (bullet_count < (s64)(array_count(bullets))) {
         Bullet *result = &bullets[bullet_count];
         bullet_count += 1;
 
@@ -175,15 +175,19 @@ float distance(Vector2 p0, Vector2 p1) {
 }
 
 inline bool check_invaders_collision(Bullet *bullet) {
-    if (!is_alive) return false;
-
     if (bullet->is_hostile) {
+        if (!is_alive) return false;
+
         if (distance(ship_position, bullet->position) < (ship_radius*0.75f)) {
             if (!has_force_shield) {
                 my_health -= 1;
                 if (my_health <= 0) {
                     is_alive = false;
+#if OS_WINDOWS
                     print("Game Over: You have %lld points\n", my_score);
+#else
+                    print("Game Over: You have %ld points\n", my_score);
+#endif
                 }
                 shake_radius = 2.0f;
             }
@@ -199,7 +203,7 @@ inline bool check_invaders_collision(Bullet *bullet) {
             int roll = random_get(0, 100);
             if (roll < 60) {
                 // Drop items.
-                if (pickup_count < array_count(pickups)) {
+                if (pickup_count < ((s64)array_count(pickups))) {
                     Pickup *p = &pickups[pickup_count];
                     pickup_count += 1;
 
@@ -254,7 +258,7 @@ inline void imm_draw_circle(Vector2 center, float radius, Vector4 color, int seg
 }
 
 void simulate_gameplay(float dt) {
-    if (key_fire.is_down && (bullet_countdown <= 0) && is_alive) {
+    if (key_space.is_down && (bullet_countdown <= 0) && is_alive) {
         if ((shot_type == SHOT_SINGLE) || (shot_type == SHOT_TRIPLE)) {
             fire_bullet(ship_position);
         }
@@ -395,7 +399,7 @@ void simulate_gameplay(float dt) {
 }
 
 int main(void) {
-    auto window = init_window_and_opengl("Space Invaders", 800, 600);
+    auto window = init_window("Space Invaders", 800, 600);
 
     Texture spaceship  = texture_load_from_file("data/spaceship.png");
     Texture spaceship_upgrade = texture_load_from_file("data/spaceship_upgrade.png");
@@ -419,13 +423,6 @@ int main(void) {
 
     Texture *texture_pickups[4] = {&pickup1, &pickup2, &pickup3, &pickup_hp};
     Texture *invader_ships[4] = {&spaceship2, &spaceship3, &spaceship4, &spaceship5};
-
-    // Depth is mapped as near=-1 and far 1.
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     spawn_invaders(level_index);
 
@@ -607,7 +604,7 @@ int main(void) {
         frame_flush();
         swap_buffers(window);
 
-        Sleep(1);
+        os_sleep(1);
     }
 
     free_window_and_opengl(window);
@@ -620,24 +617,10 @@ int main(void) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #define GENERAL_IMPLEMENTATION
 #include "general.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+#include "framework.cpp"

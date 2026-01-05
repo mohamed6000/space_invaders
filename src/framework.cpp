@@ -1,3 +1,5 @@
+#include "framework.h"
+
 #if OS_WINDOWS
 #define UNICODE
 #define _UNICODE
@@ -5,49 +7,41 @@
 #define WIN32_LEAN_AND_MEAN
 #define VC_EXTRALEAN
 #include <windows.h>
-#endif
 
+struct OS_Window {
+    HWND hwnd;
+};
+#endif
 
 #if OS_LINUX
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <dlfcn.h>
 #include <time.h>
-#endif
 
+struct OS_Window {
+    Window window;
+};
+#endif
 
 #define GL_IMPLEMENTATION
 #include "GL.h"
 
+// Globals.
 bool should_quit = false;
 int back_buffer_width;
 int back_buffer_height;
 
-GLuint vbo;
-GLuint last_bound_texture_id;
-GLuint shader_program;
-GLuint projection_loc;
+Key_State key_left;
+Key_State key_right;
+Key_State key_space;
+Key_State key_esc;
 
-int current_vertex_per_primitive = 3;
-
-struct Vector2 {
-    float x, y;
-};
-
-struct Vector3 {
-    float x, y, z;
-};
-
-struct Vector4 {
-    float x, y, z, w;
-};
-
-struct Texture {
-    GLuint id;
-    int width;
-    int height;
-    int channels;
-};
+// Internal.
+static GLuint vbo;
+static GLuint last_bound_texture_id;
+static GLuint shader_program;
+static GLuint projection_loc;
 
 struct Vertex {
     Vector3 position;
@@ -55,21 +49,11 @@ struct Vertex {
     Vector2 uv;
 };
 
-
-struct Key_State {
-    bool is_down;
-    bool was_down;
-};
-
-Key_State key_left;
-Key_State key_right;
-Key_State key_fire;
-Key_State key_esc;
-
-
 const int MAX_VERTICES = 1024;
 static Vertex vertices[MAX_VERTICES];
 int vertex_count = 0;
+
+int current_vertex_per_primitive = 3;
 
 const char *vertex_shader_source = R"(
 #version 330 core
@@ -103,6 +87,84 @@ void main() {
 }
 )";
 
+void init_framework(void) {
+    const GLubyte *gl_version  = glGetString(GL_VERSION);
+    const GLubyte *gl_vendor   = glGetString(GL_VENDOR);
+    const GLubyte *gl_renderer = glGetString(GL_RENDERER);
+    const GLubyte *gl_shader_version = glGetString(GL_SHADING_LANGUAGE_VERSION);
+    
+    print("OpenGL Version:  %s\n", gl_version);
+    print("OpenGL Vendor:   %s\n", gl_vendor);
+    print("OpenGL Renderer: %s\n", gl_renderer);
+    print("OpenGL Shading Language Version: %s\n", gl_shader_version);
+
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex_shader, 1, &vertex_shader_source, null);
+    glCompileShader(vertex_shader);
+
+    int  success;
+    char infoLog[512];
+    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
+    if(!success) {
+        glGetShaderInfoLog(vertex_shader, size_of(infoLog), NULL, infoLog);
+        print("Failed to compile vertex shader:\n%s\n", infoLog);
+    }
+
+    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment_shader, 1, &fragment_shader_source, null);
+    glCompileShader(fragment_shader);
+
+    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
+    if(!success) {
+        glGetShaderInfoLog(fragment_shader, size_of(infoLog), NULL, infoLog);
+        print("Failed to compile fragment shader:\n%s\n", infoLog);
+    }
+
+    shader_program = glCreateProgram();
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, fragment_shader);
+    glLinkProgram(shader_program);
+
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * size_of(float), (void *)0);
+    glEnableVertexAttribArray(0);
+    
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 9 * size_of(float), (void *)12);
+    glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 9 * size_of(float), (void *)28);
+    glEnableVertexAttribArray(2);
+
+    glUseProgram(shader_program);
+
+    projection_loc = glGetUniformLocation(shader_program, "projection");
+
+
+    // Depth is mapped as near=-1 and far 1.
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+void frame_begin(int vertex_per_primitive) {
+    if (vertex_per_primitive != current_vertex_per_primitive) {
+        frame_flush();
+    }
+
+    current_vertex_per_primitive = vertex_per_primitive;
+}
+
 void frame_flush(void) {
     if (!vertex_count) return;
 
@@ -116,14 +178,6 @@ void frame_flush(void) {
     }
 
     vertex_count = 0;
-}
-
-void frame_begin(int vertex_per_primitive = 3) {
-    if (vertex_per_primitive != current_vertex_per_primitive) {
-        frame_flush();
-    }
-
-    current_vertex_per_primitive = vertex_per_primitive;
 }
 
 void render_update_texture(Texture *texture, unsigned char *data) {
@@ -172,7 +226,7 @@ Texture texture_load_from_file(const char *file_path) {
 }
 
 void set_texture(Texture *texture) {
-    if (last_bound_texture_id != texture->id) {
+if (last_bound_texture_id != texture->id) {
         frame_flush();
         GLint texture_handle = glGetUniformLocation(shader_program, "texture_map");
         glUniform1i(texture_handle, 0);
@@ -184,7 +238,7 @@ void set_texture(Texture *texture) {
     last_bound_texture_id = texture->id;
 }
 
-void rendering_2d(int w, int h, float x = 0, float y = 0) {
+void rendering_2d(int w, int h, float x, float y) {
     float proj[16] = {
         2.0f/w,  0,       0,   0,
         0,       2.0f/h,  0,   0,
@@ -409,7 +463,7 @@ void draw_quad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3,
     vertex_count += 6;
 }
 
-inline Vector2 rotate_z(Vector2 v, Vector2 c, float theta) {
+Vector2 rotate_z(Vector2 v, Vector2 c, float theta) {
     Vector2 result;
 
     float ct = cosf(theta);
@@ -428,83 +482,9 @@ inline Vector2 rotate_z(Vector2 v, Vector2 c, float theta) {
 }
 
 
-void init_shaders(void) {
-    const GLubyte *gl_version  = glGetString(GL_VERSION);
-    const GLubyte *gl_vendor   = glGetString(GL_VENDOR);
-    const GLubyte *gl_renderer = glGetString(GL_RENDERER);
-    const GLubyte *gl_shader_version = glGetString(GL_SHADING_LANGUAGE_VERSION);
-    
-    print("OpenGL Version:  %s\n", gl_version);
-    print("OpenGL Vendor:   %s\n", gl_vendor);
-    print("OpenGL Renderer: %s\n", gl_renderer);
-    print("OpenGL Shading Language Version: %s\n", gl_shader_version);
-
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_source, null);
-    glCompileShader(vertex_shader);
-
-    int  success;
-    char infoLog[512];
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
-    if(!success) {
-        glGetShaderInfoLog(vertex_shader, size_of(infoLog), NULL, infoLog);
-        print("Failed to compile vertex shader:\n%s\n", infoLog);
-    }
-
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_source, null);
-    glCompileShader(fragment_shader);
-
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
-    if(!success) {
-        glGetShaderInfoLog(fragment_shader, size_of(infoLog), NULL, infoLog);
-        print("Failed to compile fragment shader:\n%s\n", infoLog);
-    }
-
-    shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * size_of(float), (void *)0);
-    glEnableVertexAttribArray(0);
-    
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 9 * size_of(float), (void *)12);
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 9 * size_of(float), (void *)28);
-    glEnableVertexAttribArray(2);
-
-    glUseProgram(shader_program);
-
-    projection_loc = glGetUniformLocation(shader_program, "projection");
-}
-
-
 
 
 #if OS_WINDOWS
-
-extern "C" {
-    // https://docs.nvidia.com/gameworks/content/technologies/desktop/optimus.htm
-    // SHARED_EXPORT DWORD NvOptimusEnablement = 0x00000001;
-
-    /* 
-        This link https://gpuopen.com/learn/amdpowerxpressrequesthighperformance/
-        defines the constant as a DWORD, but every code I saw defines it as an int.
-    */
-    // SHARED_EXPORT int AmdPowerXpressRequestHighPerformance = 1;
-}
 
 #if COMPILER_CL
 #pragma comment(lib, "Gdi32.lib")
@@ -687,7 +667,7 @@ static LRESULT CALLBACK win32_main_window_callback(HWND hwnd, UINT msg, WPARAM w
             } else if (wparam == VK_RIGHT) {
                 key_right.is_down  = is_down;
             } else if (wparam == VK_SPACE) {
-                key_fire.is_down  = is_down;
+                key_space.is_down  = is_down;
             } else if (wparam == VK_ESCAPE) {
                 key_esc.is_down  = is_down;
             }
@@ -703,7 +683,7 @@ static LRESULT CALLBACK win32_main_window_callback(HWND hwnd, UINT msg, WPARAM w
             } else if (wparam == VK_RIGHT) {
                 key_right.is_down = is_down;
             } else if (wparam == VK_SPACE) {
-                key_fire.is_down = is_down;
+                key_space.is_down = is_down;
             } else if (wparam == VK_ESCAPE) {
                 key_esc.is_down = is_down;
             }
@@ -718,7 +698,7 @@ static LRESULT CALLBACK win32_main_window_callback(HWND hwnd, UINT msg, WPARAM w
 
 static float64 one_over_frequency = 1.0;
 
-HWND init_window_and_opengl(const char *title, int w, int h) {
+OS_Window *init_window(const char *title, int w, int h) {
     HINSTANCE hInstance = GetModuleHandleW(null);
 
     WNDCLASSEXW wc = {};
@@ -765,9 +745,12 @@ HWND init_window_and_opengl(const char *title, int w, int h) {
         return 0;
     }
 
+    OS_Window *result = New(OS_Window);
+    result->hwnd = hwnd;
+
     opengl_init(hwnd);
     
-    init_shaders();
+    init_framework();
 
     // Display the window.
     UpdateWindow(hwnd);
@@ -781,7 +764,7 @@ HWND init_window_and_opengl(const char *title, int w, int h) {
     back_buffer_width = w;
     back_buffer_height = h;
 
-    return hwnd;
+    return result;
 }
 
 float64 get_current_time(void) {
@@ -790,10 +773,11 @@ float64 get_current_time(void) {
     return wall_counter.QuadPart * one_over_frequency;
 }
 
-void free_window_and_opengl(HWND hwnd) {
-    UNUSED(hwnd);
+void free_window_and_opengl(OS_Window *w) {
+    UNUSED(w->hwnd);
     W32_wglMakeCurrent(null, null);
     W32_wglDeleteContext(gl_context);
+    MemFree(w);
 }
 
 void update_window_events(void) {
@@ -804,16 +788,19 @@ void update_window_events(void) {
     }
 }
 
-void swap_buffers(HWND hwnd) {
-    HDC hdc = GetDC(hwnd);
+void swap_buffers(OS_Window *w) {
+    HDC hdc = GetDC(w->hwnd);
     BOOL ok = SwapBuffers(hdc);
     if (ok == FALSE) {
         write_string("Failed to SwapBuffers.\n", true);
     }
 }
 
-#endif
+void os_sleep(u32 ms) {
+    Sleep((DWORD)ms);
+}
 
+#endif  // OS_WINDOWS
 
 
 
@@ -842,12 +829,12 @@ GLXFBConfig glx_choose_best_fb_config(Display *display, int screen_id, int *visu
             glXGetFBConfigAttrib(display, fb_configs[index], GLX_SAMPLE_BUFFERS, &sample_buffer);
             glXGetFBConfigAttrib(display, fb_configs[index], GLX_SAMPLES,        &sample_count);
 
-            if ((best_fbc_index < 0) || sample_buffer && (sample_count > best_sample_count)) {
+            if ((best_fbc_index < 0) || (sample_buffer && (sample_count > best_sample_count))) {
                 best_fbc_index = index;
                 best_sample_count = sample_count;
             }
 
-            if ((worst_fbc_index < 0) || !sample_buffer && (sample_count < worst_sample_count)) {
+            if ((worst_fbc_index < 0) || (!sample_buffer && (sample_count < worst_sample_count))) {
                 worst_fbc_index = index;
                 worst_sample_count = sample_count;
             }
@@ -866,7 +853,12 @@ static Colormap colormap;
 static Atom wm_delete_window;
 static GLXContext gl_context;
 
-Window init_window_and_opengl(const char *title, int w, int h) {
+static KeyCode xkey_left;
+static KeyCode xkey_right;
+static KeyCode xkey_space;
+static KeyCode xkey_escape;
+
+OS_Window *init_window(const char *title, int w, int h) {
     display = XOpenDisplay(null);
     if (!display) {
         write_string("Failed to XOpenDisplay.\n", true);
@@ -929,7 +921,7 @@ Window init_window_and_opengl(const char *title, int w, int h) {
     window_attributes.background_pixel  = white_color;
     window_attributes.override_redirect = True;
     window_attributes.colormap   = colormap;
-    window_attributes.event_mask = ExposureMask|KeyPressMask|StructureNotifyMask;
+    window_attributes.event_mask = ExposureMask|KeyPressMask|KeyReleaseMask|StructureNotifyMask;
 
     Window window = XCreateWindow(display, parent_window, 
                                   10, 10,
@@ -1006,28 +998,40 @@ Window init_window_and_opengl(const char *title, int w, int h) {
     XWindowAttributes size_attributes;
     XGetWindowAttributes(display, window, &size_attributes);
     
-    init_shaders();
+    init_framework();
 
     back_buffer_width = w;
     back_buffer_height = h;
 
-    return window;
+
+    xkey_left   = XKeysymToKeycode(display, XK_Left);
+    xkey_right  = XKeysymToKeycode(display, XK_Right);
+    xkey_space  = XKeysymToKeycode(display, XK_space);
+    xkey_escape = XKeysymToKeycode(display, XK_Escape);
+
+
+    OS_Window *result = New(OS_Window);
+    result->window = window;
+
+    return result;
 }
 
 const float64 ONE_OVER_NANO_SECOND = 0.000000001;
 
 float64 get_current_time(void) {
-    timespec tspec;
+    struct timespec tspec;
     clock_gettime(CLOCK_MONOTONIC_RAW, &tspec);
     return (float64)tspec.tv_sec + tspec.tv_nsec * ONE_OVER_NANO_SECOND;
 }
 
-void free_window_and_opengl(Window window) {
+void free_window_and_opengl(OS_Window *w) {
     glXDestroyContext(display, gl_context);
 
     XFreeColormap(display, colormap);
-    XDestroyWindow(display, window);
+    XDestroyWindow(display, w->window);
     XCloseDisplay(display);
+
+    MemFree(w);
 }
 
 void update_window_events(void) {
@@ -1058,14 +1062,56 @@ void update_window_events(void) {
                 break;
 
             case KeyPress:
-                write_string("Key press event.\n");
-                break;
+            {
+                bool is_down = true;
+                KeyCode key_code = event.xkey.keycode;
+
+                if (key_code == xkey_left) {
+                    key_left.is_down = is_down;
+                } else if (key_code == xkey_right) {
+                    key_right.is_down = is_down;
+                } else if (key_code == xkey_space) {
+                    key_space.is_down = is_down;
+                } else if (key_code == xkey_escape) {
+                    key_esc.is_down = is_down;
+                }
+            } break;
+
+            case KeyRelease:
+            {
+                bool is_down = false;
+                KeyCode key_code = event.xkey.keycode;
+
+                if (key_code == xkey_left) {
+                    key_left.is_down = is_down;
+                } else if (key_code == xkey_right) {
+                    key_right.is_down = is_down;
+                } else if (key_code == xkey_space) {
+                    key_space.is_down = is_down;
+                } else if (key_code == xkey_escape) {
+                    key_esc.is_down = is_down;
+                }
+            } break;
         }
     }
 }
 
-void swap_buffers(Window window) {
-    glXSwapBuffers(display, window);
+void swap_buffers(OS_Window *w) {
+    glXSwapBuffers(display, w->window);
 }
 
+void os_sleep(u32 ms) {
+#if _POSIX_C_SOURCE >= 199309L
+    struct timespec ts;
+    ts.tv_sec   = ms / 1000;
+    ts.tv_nsec  = (ms % 1000) * 1000 * 1000;
+    nanosleep(&ts, 0);
+#else
+    if (ms >= 1000) {
+        sleep(ms / 1000);
+    }
+    usleep((ms % 1000) * 1000);
 #endif
+}
+
+#endif  // OS_LINUX

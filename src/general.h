@@ -24,6 +24,16 @@
 
     #define NO_ASSERT (undefined by default) use it to prevent defining assert(x)
 
+
+    To define a custom logger:
+
+        void logger_name(Log_Mode mode, const char *ident, const char *message, ...) {...}
+
+    To get printf like compile-time checking, forward declare with:
+        void logger_name(Log_Mode mode, const char *ident, const char *message, ...) IS_PRINTF_LIKE(3, 4);
+
+    The Logger_Proc typedef can be helpful in some cases.
+
 */
 
 #ifndef GENERAL_DEBUG
@@ -282,7 +292,7 @@ typedef u8  b8;   // For consistency.
 #define align_forward_pointer(p, a) ((u8 *)(((umm)(p) + ((a)-1)) & ~((a)-1)))
 
 
-#if COMPILER_GCC
+#if COMPILER_GCC || COMPILER_CLANG
 #define IS_PRINTF_LIKE(fmtarg, first_vararg) __attribute__((__format__ (printf, fmtarg, first_vararg)))
 #else
 #define IS_PRINTF_LIKE(fmtarg, first_vararg)
@@ -334,7 +344,6 @@ typedef u8  b8;   // For consistency.
 #endif
 
 
-TINYRT_EXTERN void print_stacktrace(void);
 TINYRT_EXTERN char *get_stacktrace(void);
 
 
@@ -580,8 +589,7 @@ typedef enum Log_Mode {
     LOG_VERBOSE,
 } Log_Mode;
 
-#define LOGGER_PROC(name) void name(Log_Mode mode, const char *ident, const char *message, ...)
-typedef LOGGER_PROC(Logger_Proc);
+typedef void Logger_Proc(Log_Mode mode, const char *ident, const char *message, ...) IS_PRINTF_LIKE(3, 4);
 
 extern thread_var Logger_Proc *current_logger;
 
@@ -658,35 +666,48 @@ mprint():
 
 const int MPRINT_INITIAL_GUESS = 256;
 
-char *mprint(const char *fmt, ...);
-char *mprint(int initial_guess, const char *fmt, ...);
+char *mprint(const char *fmt, ...) IS_PRINTF_LIKE(1, 2);
+char *mprint(int initial_guess, const char *fmt, ...) IS_PRINTF_LIKE(2, 3);
 TINYRT_EXTERN char *mprint_valist(const char *fmt, va_list arg_list);
 
-TINYRT_EXTERN char *tprint(const char *fmt, ...);
+TINYRT_EXTERN char *tprint(const char *fmt, ...) IS_PRINTF_LIKE(1, 2);
 TINYRT_EXTERN char *tprint_valist(const char *fmt, va_list arg_list);
 
-TINYRT_EXTERN void print(const char *fmt, ...);
+TINYRT_EXTERN void print(const char *fmt, ...) IS_PRINTF_LIKE(1, 2);
 
-inline LOGGER_PROC(default_logger) {
+inline void default_logger(Log_Mode mode, const char *ident, const char *message, ...) {
     UNUSED(mode);
 
     if (ident) {
         write_string("[");
         write_string(ident);
-        write_string("]: ");
+        write_string("] ");
     }
 
+#if 0
     write_string(message);
+#else
+    s64 mark = get_temporary_storage_mark();
+    va_list args;
+    va_start(args, message);
+
+    char *s = tprint_valist(message, args);
+    va_end(args);
+
+    write_string(s);
+    set_temporary_storage_mark(mark);
+#endif
+
     write_string("\n");
 }
 
-inline LOGGER_PROC(error_logger) {
+inline void error_logger(Log_Mode mode, const char *ident, const char *message, ...) {
     UNUSED(mode);
 
     if (ident) {
         write_string("[", true);
         write_string(ident, true);
-        write_string("]: ", true);
+        write_string("] ", true);
     }
 
     write_string(message, true);
@@ -1070,6 +1091,9 @@ thread_var Allocator temporary_allocator = {temporary_storage_proc, null};
 #ifdef INCLUDE_WINDEFS
 #include "windefs.h"
 #else
+#define UNICODE
+#define _UNICODE
+
 #define WIN32_LEAN_AND_MEAN
 #define VC_EXTRALEAN
 #include <windows.h>
@@ -1321,66 +1345,7 @@ TINYRT_EXTERN bool tinyrt_abort_error_message(const char *title, const char *mes
 #pragma comment(lib, "Dbghelp.lib")
 #endif
 
-
-/*
-TINYRT_EXTERN void print_stacktrace(void) {
-    HANDLE process = GetCurrentProcess();
- 
-    static BOOL initted = false;
-    if (!initted) {
-        initted = SymInitialize(process, null, TRUE);
-    }
-    
-    if (initted == TRUE) {
-        // Windows Server 2003 and Windows XP: The sum of the FramesToSkip and FramesToCapture parameters must be less than 63.
-        const int MAX_STACK_FRAMES = 63;
-        void *stack[MAX_STACK_FRAMES];
-
-        const int MAX_SYMBOL_NAME = 255;
-        u8 buf[size_of(SYMBOL_INFO) + (MAX_SYMBOL_NAME+1)];
-
-        SYMBOL_INFO *symbol_info = (SYMBOL_INFO *)buf;
-        symbol_info->MaxNameLen = MAX_SYMBOL_NAME;
-        symbol_info->SizeOfStruct = size_of(SYMBOL_INFO);
-
-        SymSetOptions(SYMOPT_LOAD_LINES);
-
-        IMAGEHLP_LINEW64 line64 = {};
-        line64.SizeOfStruct = size_of(IMAGEHLP_LINEW64);
-
-        u16 frames = CaptureStackBackTrace(0, MAX_STACK_FRAMES, stack, null);
-        if (frames > 0) {
-            printf("Caller stack:\n");
-            for (u16 index = 0; index < frames; ++index) {
-                DWORD64 dw_displacement64;
-                BOOL ok = SymFromAddr(process, (DWORD64)(stack[index]), &dw_displacement64, symbol_info);
-                if (!ok) continue;
-
-                s64 call_line;
-                s64 stack_line;
-
-                DWORD64 call_address = (DWORD64)(stack[index]);  // Caller location.
-                DWORD64 stack_address = symbol_info->Address;    // Procedure location.
-
-                DWORD dw_displacement;
-                ok = SymGetLineFromAddrW64(process, call_address, &dw_displacement, &line64);
-                if (!ok) continue;
-
-                call_line = line64.LineNumber;
-
-                ok = SymGetLineFromAddrW64(process, stack_address, &dw_displacement, &line64);
-                if (!ok) continue;
-
-                stack_line = line64.LineNumber;
-
-                printf("0x%016llX: %s(%lld) Line %lld\n", stack_address, symbol_info->Name, stack_line, call_line);
-            }
-        }
-    } else {
-        write_string("[backtrace] Error: Failed to SymInitialize.\n", true);
-    }
-}
-*/
+#include <inttypes.h>
 
 TINYRT_EXTERN char *get_stacktrace(void) {
     char *result = null;
@@ -1432,7 +1397,21 @@ TINYRT_EXTERN char *get_stacktrace(void) {
 
                 stack_line = line64.LineNumber;
 
-                char *s = tprint("%s0x%016llX: %s(%lld) Line %lld\n", result, stack_address, symbol_info->Name, stack_line, call_line);
+#if COMPILER_GCC
+                char *s = tprint("%s0x%016I64u: %s(%I64d) Line %I64d\n", 
+                                 result, 
+                                 stack_address, 
+                                 symbol_info->Name, 
+                                 stack_line, 
+                                 call_line);
+#else
+                char *s = tprint("%s0x%016" PRIXPTR ": %s(%" PRId64 ") Line %" PRId64 "\n", 
+                                 result, 
+                                 stack_address, 
+                                 symbol_info->Name, 
+                                 stack_line, 
+                                 call_line);
+#endif
                 result = s;
             }
         }
@@ -1510,16 +1489,19 @@ TINYRT_EXTERN void *heap_allocator(Allocator_Mode mode, s64 size, s64 old_size, 
 void write_string(const char *s, bool to_standard_error) {
     int handle = to_standard_error ? STDERR_FILENO : STDOUT_FILENO;
     ssize_t written = write(handle, s, string_length(s));
+    UNUSED(written);
 }
 
 void write_string(const char *s, u32 count, bool to_standard_error) {
     int handle = to_standard_error ? STDERR_FILENO : STDOUT_FILENO;
     ssize_t written = write(handle, s, count);
+    UNUSED(written);
 }
 
 void write_string(String s, bool to_standard_error) {
     int handle = to_standard_error ? STDERR_FILENO : STDOUT_FILENO;
     ssize_t written = write(handle, s.data, s.count);
+    UNUSED(written);
 }
 
 static const char *ansi_system_console_text_colors[SYSTEM_TEXT_COUNT] = {
@@ -1706,6 +1688,10 @@ TINYRT_EXTERN void print(const char *fmt, ...) {
 }
 
 TINYRT_EXTERN bool tinyrt_abort_error_message(const char *title, const char *message, const char *details) {
+    UNUSED(title);
+    UNUSED(message);
+    UNUSED(details);
+
     fflush(stderr);
     return true;
 }
@@ -1730,16 +1716,22 @@ TINYRT_EXTERN char *get_stacktrace(void) {
         if (symbols) {
             for (int index = 0; index < frames; index++) {
                 void *stack_address = stack[index];
-                char *symbol = symbols[index];
 
                 // @Todo: line numbers...
                 s64 stack_line = 0;
                 s64 call_line  = 0;
 
-                print("0x%016" PRIXPTR ": %s(%" PRId64 ") Line %" PRId64 "\n", 
-                      stack_address, 
+#if COMPILER_GCC
+                print("0x%016zu: %s(%ld) Line %ld\n", 
+                      (size_t)stack_address, 
                       symbols[index], 
                       stack_line, call_line);
+#else
+                print("0x%016" PRIXPTR ": %s(%" PRId64 ") Line %" PRId64 "\n", 
+                      (size_t)stack_address, 
+                      symbols[index], 
+                      stack_line, call_line);
+#endif
             }
 
             free(symbols);
@@ -1824,7 +1816,12 @@ TINYRT_EXTERN ALLOCATOR_PROC(temporary_storage_proc) {
 #if GENERAL_DEBUG
             if (nbytes > (ts->size - ts->occupied)) {
                 ts->high_water_mark += nbytes;
-                Log(LOG_MINIMAL, "Temporary_Storage", "Attempting to allocate from the heap, highest water mark: %lld\n", ts->high_water_mark);
+
+#if OS_WINDOWS && COMPILER_GCC
+                Log(LOG_MINIMAL, "Temporary_Storage", "Attempting to allocate from the heap, highest water mark: %I64d\n", ts->high_water_mark);
+#else
+                Log(LOG_MINIMAL, "Temporary_Storage", "Attempting to allocate from the heap, highest water mark: %" PRId64 "\n", ts->high_water_mark);
+#endif
                 return heap_allocator(ALLOCATOR_ALLOCATE, nbytes, 0, null, null);
             }
 #else
@@ -1846,7 +1843,11 @@ TINYRT_EXTERN ALLOCATOR_PROC(temporary_storage_proc) {
 #if GENERAL_DEBUG
             if (nbytes > (ts->size - ts->occupied)) {
                 ts->high_water_mark += nbytes;
-                Log(LOG_MINIMAL, "Temporary_Storage", "Attempting to allocate from the heap, highest water mark: %lld\n", ts->high_water_mark);
+#if OS_WINDOWS && COMPILER_GCC
+                Log(LOG_MINIMAL, "Temporary_Storage", "Attempting to allocate from the heap, highest water mark: %I64d\n", ts->high_water_mark);
+#else
+                Log(LOG_MINIMAL, "Temporary_Storage", "Attempting to allocate from the heap, highest water mark: %" PRId64 "\n", ts->high_water_mark);
+#endif
                 return heap_allocator(ALLOCATOR_ALLOCATE, nbytes, 0, null, null);
             }
 #else
