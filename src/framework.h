@@ -49,9 +49,14 @@ void os_sleep(u32 ms);
 void init_framework(void);
 void frame_begin(int vertex_per_primitive = 3);
 void frame_flush(void);
+
 void render_update_texture(Texture *texture, unsigned char *data);
+
 Texture texture_load_from_file(const char *file_path);
+Texture texture_load_from_memory(void *memory, s32 w, s32 h, s32 channels);
+
 void set_texture(Texture *texture);
+
 void rendering_2d(int w, int h, float x = 0, float y = 0);
 
 void draw_vertex(Vector2 p, Vector4 c);

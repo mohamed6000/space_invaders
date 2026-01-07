@@ -225,6 +225,19 @@ Texture texture_load_from_file(const char *file_path) {
     return result;
 }
 
+Texture texture_load_from_memory(void *memory, s32 w, s32 h, s32 channels) {
+    assert(memory != null);
+
+    Texture result = {};
+    result.width    = w;
+    result.height   = h;
+    result.channels = channels;
+
+    render_update_texture(&result, (u8 *)memory);
+
+    return result;
+}
+
 void set_texture(Texture *texture) {
 if (last_bound_texture_id != texture->id) {
         frame_flush();

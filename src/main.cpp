@@ -410,7 +410,6 @@ int main(void) {
     Texture bullet     = texture_load_from_file("data/bullet.png");
     Texture bullet2    = texture_load_from_file("data/bullet2.png");
     Texture missile    = texture_load_from_file("data/missile.png");
-    Texture white      = texture_load_from_file("data/white_pixel.png");
     Texture force_shield = texture_load_from_file("data/force_shield.png");
     Texture background = texture_load_from_file("data/background.png");
     Texture mid        = texture_load_from_file("data/mid.png");
@@ -420,6 +419,9 @@ int main(void) {
     Texture pickup2   = texture_load_from_file("data/pickup2.png");
     Texture pickup3   = texture_load_from_file("data/pickup3.png");
     Texture pickup_hp = texture_load_from_file("data/pickup4.png");
+
+    u8 pixel_data[4] = {0xFF,0xFF,0xFF,0xFF};
+    Texture white = texture_load_from_memory(pixel_data, 1, 1, 4);
 
     Texture *texture_pickups[4] = {&pickup1, &pickup2, &pickup3, &pickup_hp};
     Texture *invader_ships[4] = {&spaceship2, &spaceship3, &spaceship4, &spaceship5};

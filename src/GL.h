@@ -663,6 +663,7 @@ bool gl_load(void) {
     return true;
 }
 
+// @Todo: One cross platform function?
 bool gl_load_extensions(void) {
     GL_LOAD_PROC(glGenVertexArrays);
     GL_LOAD_PROC(glBindVertexArray);
@@ -887,6 +888,7 @@ bool gl_load(void) {
     return true;
 }
 
+// @Todo: One cross platform function?
 bool gl_load_extensions(void) {
     GL_LOAD_PROC(glGenVertexArrays);
     GL_LOAD_PROC(glBindVertexArray);
