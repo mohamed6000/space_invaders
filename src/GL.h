@@ -776,6 +776,7 @@ typedef GLXFBConfig *GL_PROC(glXChooseFBConfig)(Display *dpy, int screen, const 
 typedef int GL_PROC(glXGetFBConfigAttrib)(Display *dpy, GLXFBConfig config, int attribute, int *value);
 typedef XVisualInfo *GL_PROC(glXGetVisualFromFBConfig)(Display *dpy, GLXFBConfig config);
 typedef const char *GL_PROC(glXQueryExtensionsString)(Display *dpy, int screen);
+typedef Bool GL_PROC(glXIsDirect)(Display *dpy, GLXContext ctx);
 
 static GL_PROC(glXQueryVersion)            *glXQueryVersion;
 static GL_PROC(glXChooseVisual)            *glXChooseVisual;
@@ -789,6 +790,7 @@ static GL_PROC(glXChooseFBConfig)          *glXChooseFBConfig;
 static GL_PROC(glXGetFBConfigAttrib)       *glXGetFBConfigAttrib;
 static GL_PROC(glXGetVisualFromFBConfig)   *glXGetVisualFromFBConfig;
 static GL_PROC(glXQueryExtensionsString)   *glXQueryExtensionsString;
+static GL_PROC(glXIsDirect)                *glXIsDirect;
 
 #define GLX_LOAD_PROC(ident) ident = (GL_PROC(ident) *)dlsym(glx_module, #ident)
 
@@ -809,6 +811,7 @@ static bool glx_load(void) {
     GLX_LOAD_PROC(glXDestroyContext);
     GLX_LOAD_PROC(glXMakeCurrent);
     GLX_LOAD_PROC(glXSwapBuffers);
+    GLX_LOAD_PROC(glXIsDirect);
 
     glXGetProcAddress = (glXGetProcAddressPROC *)dlsym(glx_module, "glXGetProcAddressARB");
     if (!glXGetProcAddress) {

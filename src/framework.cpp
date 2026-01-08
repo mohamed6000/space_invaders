@@ -986,13 +986,21 @@ OS_Window *init_window(const char *title, int w, int h) {
     };
 
     gl_context = glXCreateContextAttribsARB(display, 
-                                                       best_config,
-                                                       null,
-                                                       True,
-                                                       context_attributes);
+                                            best_config,
+                                            null,
+                                            True,
+                                            context_attributes);
     if (!gl_context) {
         write_string("Failed to glXCreateContextAttribsARB.\n", true);
         return 0;
+    }
+    XSync(display, False);
+
+    // Verifying that the context is direct.
+    if (!glXIsDirect(display, gl_context)) {
+        write_string("Indirect GLX rendering context obtained.\n");
+    } else {
+        write_string("Direct GLX rendering context obtained.\n");
     }
 
     if (!glXMakeCurrent(display, window, gl_context)) {
