@@ -1,5 +1,13 @@
 #include "framework.h"
 
+#define STBI_ASSERT(x) assert(x)
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+#define STBTT_assert(x) assert(x)
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
 #if OS_WINDOWS
 #define UNICODE
 #define _UNICODE
@@ -194,9 +202,14 @@ void render_update_texture(Texture *texture, unsigned char *data) {
     if (texture->channels == 3) {
         gl_source_format = GL_RGB8;
         gl_dest_format   = GL_RGB;
+    } else if (texture->channels == 1) {
+        gl_source_format = GL_R8;
+        gl_dest_format   = GL_RED;
+    } else if (texture->channels != 4) {
+        // @Todo: Add more formats.
+        assert(false);
     }
 
-    // @Todo: Add more formats.
     glBindTexture(GL_TEXTURE_2D, texture->id);
     
     glTexImage2D(GL_TEXTURE_2D, 0, gl_source_format, 
@@ -204,10 +217,19 @@ void render_update_texture(Texture *texture, unsigned char *data) {
                  0, gl_dest_format, GL_UNSIGNED_BYTE, 
                  data);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    if (texture->channels == 1) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
+    } else {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
 }
 
 Texture texture_load_from_file(const char *file_path) {
@@ -239,7 +261,7 @@ Texture texture_load_from_memory(void *memory, s32 w, s32 h, s32 channels) {
 }
 
 void set_texture(Texture *texture) {
-if (last_bound_texture_id != texture->id) {
+    if (last_bound_texture_id != texture->id) {
         frame_flush();
         GLint texture_handle = glGetUniformLocation(shader_program, "texture_map");
         glUniform1i(texture_handle, 0);
@@ -492,6 +514,98 @@ Vector2 rotate_z(Vector2 v, Vector2 c, float theta) {
     result.y += c.y;
 
     return result;
+}
+
+GLuint get_shader(void) {
+    return shader_program;
+}
+
+static stbtt_packedchar font_packed_chars[128];
+
+bool font_load_from_file(const char *file_path, s32 font_size_in_pixels, Simple_Font *font) {
+    FILE *file = fopen(file_path, "rb");
+    if (!file) {
+        print("Failed to load font: %s\n", file_path);
+        return false;
+    }
+
+    fseek(file, 0, SEEK_END);
+    umm size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    u8 *data = NewArray(u8, size);
+    if (!data) return false;
+
+    fread(data, size, 1, file);
+    fclose(file);
+
+/*
+    stbtt_fontinfo font_info = {};
+    if (!stbtt_InitFont(&font_info, data, stbtt_GetFontOffsetForIndex(data, 0))) {
+        return false;
+    }
+*/
+
+    s32 font_texture_size = 512;
+
+    u8 *pixels = NewArray(u8, font_texture_size*font_texture_size);
+    if (!pixels) return false;
+
+    stbtt_pack_context pc;
+
+    stbtt_PackBegin(&pc, pixels, font_texture_size, font_texture_size, 
+                    font_texture_size, 1, null);
+    stbtt_PackFontRange(&pc, data, 0, (float)font_size_in_pixels, 32, 96, 
+                        font_packed_chars + 32);
+    stbtt_PackEnd(&pc);
+
+    for (int codepoint = 32; codepoint < 128; codepoint++) {
+        Glyph_Data *glyph    = &font->glyphs[codepoint];
+        stbtt_packedchar *cd = &font_packed_chars[codepoint];
+
+        glyph->width  = cd->x1 - cd->x0;
+        glyph->height = cd->y1 - cd->y0;
+
+        glyph->u0 = cd->x0 / (float)font_texture_size;
+        glyph->v0 = cd->y0 / (float)font_texture_size;
+        glyph->u1 = cd->x1 / (float)font_texture_size;
+        glyph->v1 = cd->y1 / (float)font_texture_size;
+        
+        glyph->x_offset0 = cd->xoff;
+        glyph->y_offset0 = cd->yoff;
+        glyph->x_offset1 = cd->xoff2;
+        glyph->y_offset1 = cd->yoff2;
+        
+        glyph->x_advance = cd->xadvance;
+    }
+
+    font->texture = texture_load_from_memory(pixels, font_texture_size, font_texture_size, 1);
+
+    return true;
+}
+
+void draw_text(Simple_Font *font, const char *text, int x, int y, Vector4 color) {
+    set_texture(&font->texture);
+
+    while (*text) {
+        int codepoint = *text;
+        if (codepoint >= 32 && codepoint < 128) {
+            Glyph_Data *glyph = &font->glyphs[codepoint];
+
+            float x0 = (float)(x + glyph->x_offset0);
+            float y0 = (float)(y - glyph->y_offset1);
+
+            draw_quad(x0, y0,
+                      x0 + glyph->width, y0 + glyph->height,
+                      glyph->u0, glyph->v0,
+                      glyph->u1, glyph->v1,
+                      color);
+
+            x += (int)glyph->x_advance;
+        }
+
+        text++;
+    }
 }
 
 

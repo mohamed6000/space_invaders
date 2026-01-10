@@ -1,8 +1,19 @@
 #include "general.h"
 #include <math.h>
+#include <stdlib.h>
 
 #include "framework.h"
-#include "stb_image.h"
+
+extern "C" {
+    // https://docs.nvidia.com/gameworks/content/technologies/desktop/optimus.htm
+    // SHARED_EXPORT DWORD NvOptimusEnablement = 0x00000001;
+
+    /* 
+        This link https://gpuopen.com/learn/amdpowerxpressrequesthighperformance/
+        defines the constant as a DWORD, but every code I saw defines it as an int.
+    */
+    // SHARED_EXPORT int AmdPowerXpressRequestHighPerformance = 1;
+}
 
 
 float ship_radius     = 114.0f / 2.0f;
@@ -621,8 +632,5 @@ int main(void) {
 
 #define GENERAL_IMPLEMENTATION
 #include "general.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 
 #include "framework.cpp"

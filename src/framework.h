@@ -73,4 +73,22 @@ void draw_quad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3,
 
 Vector2 rotate_z(Vector2 v, Vector2 c, float theta);
 
+GLuint get_shader(void);
+
+// Font stuff.
+struct Glyph_Data {
+    int width, height;
+    float u0, v0, u1, v1;
+    float x_offset0, y_offset0;
+    float x_offset1, y_offset1;
+    float x_advance;
+};
+
+struct Simple_Font {
+    Texture texture;
+    Glyph_Data glyphs[128];
+};
+bool font_load_from_file(const char *file_path, s32 font_size_in_pixels, Simple_Font *font);
+void draw_text(Simple_Font *font, const char *text, int x, int y, Vector4 color);
+
 #endif  // FRAMEWORK_INCLUDE_H

@@ -261,6 +261,13 @@ typedef char          GLchar;
 #define GL_LINK_STATUS     0x8B82
 #define GL_TEXTURE0        0x84C0
 
+#define GL_TEXTURE_SWIZZLE_R    0x8E42
+#define GL_TEXTURE_SWIZZLE_G    0x8E43
+#define GL_TEXTURE_SWIZZLE_B    0x8E44
+#define GL_TEXTURE_SWIZZLE_A    0x8E45
+#define GL_TEXTURE_SWIZZLE_RGBA 0x8E46
+#define GL_R8                   0x8229
+
 // GL Core ARB Procs.
 typedef void GL_APIENTRY GL_PROC(glGenVertexArrays) (GLsizei n, GLuint *arrays);
 typedef void GL_APIENTRY GL_PROC(glBindVertexArray) (GLuint array);
