@@ -437,6 +437,9 @@ int main(void) {
     Texture *texture_pickups[4] = {&pickup1, &pickup2, &pickup3, &pickup_hp};
     Texture *invader_ships[4] = {&spaceship2, &spaceship3, &spaceship4, &spaceship5};
 
+    Simple_Font font;
+    font_load_from_file("data/fonts/OpenSans-Regular.ttf", 48, &font);
+
     spawn_invaders(level_index);
 
     float64 last_counter = 0;
@@ -599,6 +602,10 @@ int main(void) {
                 float x = 20.0f * index + 5.0f;
                 draw_quad(x, yy, x + 15.0f, yy + 15.0f, Vector4{1,1,1,1});
             }
+
+            int score_y = (int)(back_buffer_height * 0.05f);
+            char *score_text = tprint("Score: %zu", my_score);
+            draw_text(&font, score_text, 10, score_y, Vector4{1,1,1,1});
         }
 
         // Debug shapes.
@@ -618,6 +625,8 @@ int main(void) {
         swap_buffers(window);
 
         os_sleep(1);
+
+        reset_temporary_storage();
     }
 
     free_window_and_opengl(window);
