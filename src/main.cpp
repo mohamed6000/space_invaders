@@ -90,6 +90,13 @@ enum Level_State {
 Level_State level_state = LEVEL_ENEMY_INTRO;
 int level_index = 1;
 
+enum Game_State {
+    GAME_STATE_MENU,
+    GAME_STATE_GAME,
+};
+
+Game_State game_state = GAME_STATE_MENU;
+
 inline int random_get(int min_value, int max_value) {
     int result = rand() % (max_value - min_value + 1) + min_value;
     return result;
@@ -456,25 +463,33 @@ int main(void) {
             should_quit = true;
         }
 
-        if (level_state == LEVEL_GAMEPLAY) {
-            global_scroll.y -= 0.22f * current_dt;
+        if (game_state == GAME_STATE_MENU) {
+            global_scroll.y -= 0.25f * current_dt;
 
-            simulate_gameplay(current_dt);
-        } else if (level_state == LEVEL_ENEMY_INTRO) {
-            all_introduced_invaders = true;
-            global_scroll.y -= 0.88f * current_dt;
-
-            for (int index = 0; index < invaders_count; index++) {
-                Invader *it = &invaders[index];
-
-                if (it->position.y > it->destination.y) {
-                    it->position.y -= 180.0f * current_dt;
-                    all_introduced_invaders = false;
-                }
+            if (key_space.is_down) {
+                game_state = GAME_STATE_GAME;
             }
+        } else if (game_state == GAME_STATE_GAME) {
+            if (level_state == LEVEL_GAMEPLAY) {
+                global_scroll.y -= 0.22f * current_dt;
 
-            if (all_introduced_invaders) {
-                level_state = LEVEL_GAMEPLAY;
+                simulate_gameplay(current_dt);
+            } else if (level_state == LEVEL_ENEMY_INTRO) {
+                all_introduced_invaders = true;
+                global_scroll.y -= 0.88f * current_dt;
+
+                for (int index = 0; index < invaders_count; index++) {
+                    Invader *it = &invaders[index];
+
+                    if (it->position.y > it->destination.y) {
+                        it->position.y -= 180.0f * current_dt;
+                        all_introduced_invaders = false;
+                    }
+                }
+
+                if (all_introduced_invaders) {
+                    level_state = LEVEL_GAMEPLAY;
+                }
             }
         }
 
@@ -520,92 +535,98 @@ int main(void) {
         }
 
 
-        for (int index = 0; index < invaders_count; index++) {
-            Invader *invader = &invaders[index];
-            
-            set_texture(invader_ships[invader->texture_index]);
+        if (game_state == GAME_STATE_GAME) {
+            for (int index = 0; index < invaders_count; index++) {
+                Invader *invader = &invaders[index];
+                
+                set_texture(invader_ships[invader->texture_index]);
 
-            Vector2 p0;
-            p0.x = invader->position.x - ship_radius;
-            p0.y = invader->position.y - ship_radius;
+                Vector2 p0;
+                p0.x = invader->position.x - ship_radius;
+                p0.y = invader->position.y - ship_radius;
 
-            Vector2 p1;
-            p1.x = invader->position.x + ship_radius;
-            p1.y = invader->position.y + ship_radius;
+                Vector2 p1;
+                p1.x = invader->position.x + ship_radius;
+                p1.y = invader->position.y + ship_radius;
 
-            draw_quad(p0.x, p0.y, p1.x, p1.y, 0, 1, 1, 0, Vector4{1,1,1,1});
-        }
+                draw_quad(p0.x, p0.y, p1.x, p1.y, 0, 1, 1, 0, Vector4{1,1,1,1});
+            }
 
-        if (is_alive) {
-            if (shot_type == SHOT_SINGLE)
-                set_texture(&spaceship);
-            else
-                set_texture(&spaceship_upgrade);
-            
-            Vector2 p0;
-            p0.x = ship_position.x - ship_radius;
-            p0.y = ship_position.y - ship_radius;
+            if (is_alive) {
+                if (shot_type == SHOT_SINGLE)
+                    set_texture(&spaceship);
+                else
+                    set_texture(&spaceship_upgrade);
+                
+                Vector2 p0;
+                p0.x = ship_position.x - ship_radius;
+                p0.y = ship_position.y - ship_radius;
 
-            Vector2 p1;
-            p1.x = ship_position.x + ship_radius;
-            p1.y = ship_position.y + ship_radius;
+                Vector2 p1;
+                p1.x = ship_position.x + ship_radius;
+                p1.y = ship_position.y + ship_radius;
 
-            draw_quad(p0.x, p0.y, 
-                      p1.x, p1.y,
-                      Vector4{1,1,1,1});
-
-            if (has_force_shield) {
-                set_texture(&force_shield);
-                draw_quad(p0.x, p0.y,
+                draw_quad(p0.x, p0.y, 
                           p1.x, p1.y,
                           Vector4{1,1,1,1});
-            }
-        }
 
-        for (int index = 0; index < pickup_count; index++) {
-            Pickup *it = &pickups[index];
-
-            set_texture(texture_pickups[it->type]);
-            
-            draw_quad(it->position.x - pickup_radius, 
-                      it->position.y - pickup_radius, 
-                      it->position.x + pickup_radius, 
-                      it->position.y + pickup_radius,
-                      Vector4{1,1,1,1});
-        }
-
-        for (int index = 0; index < bullet_count; index++) {
-            Bullet *b = &bullets[index];
-            if (b->is_hostile) {
-                set_texture(&bullet2);
-            } else {
-                if (b->type == SHOT_SINGLE)
-                    set_texture(&bullet);
-                else if (b->type == SHOT_DOUBLE)
-                    set_texture(&missile);
-                else assert(false);
+                if (has_force_shield) {
+                    set_texture(&force_shield);
+                    draw_quad(p0.x, p0.y,
+                              p1.x, p1.y,
+                              Vector4{1,1,1,1});
+                }
             }
 
-            draw_quad(b->position.x - bullet_radius,
-                      b->position.y - bullet_radius,
-                      b->position.x + bullet_radius,
-                      b->position.y + bullet_radius,
-                      Vector4{1,1,1,1});
-        }
+            for (int index = 0; index < pickup_count; index++) {
+                Pickup *it = &pickups[index];
 
-
-        // HUD.
-        if (level_state == LEVEL_GAMEPLAY) {
-            set_texture(&white);
-            float yy = back_buffer_height * 0.9f;
-            for (int index = 0; index < my_health; index++) {
-                float x = 20.0f * index + 5.0f;
-                draw_quad(x, yy, x + 15.0f, yy + 15.0f, Vector4{1,1,1,1});
+                set_texture(texture_pickups[it->type]);
+                
+                draw_quad(it->position.x - pickup_radius, 
+                          it->position.y - pickup_radius, 
+                          it->position.x + pickup_radius, 
+                          it->position.y + pickup_radius,
+                          Vector4{1,1,1,1});
             }
 
-            int score_y = (int)(back_buffer_height * 0.05f);
-            char *score_text = tprint("Score: %zu", my_score);
-            draw_text(&font, score_text, 10, score_y, Vector4{1,1,1,1});
+            for (int index = 0; index < bullet_count; index++) {
+                Bullet *b = &bullets[index];
+                if (b->is_hostile) {
+                    set_texture(&bullet2);
+                } else {
+                    if (b->type == SHOT_SINGLE)
+                        set_texture(&bullet);
+                    else if (b->type == SHOT_DOUBLE)
+                        set_texture(&missile);
+                    else assert(false);
+                }
+
+                draw_quad(b->position.x - bullet_radius,
+                          b->position.y - bullet_radius,
+                          b->position.x + bullet_radius,
+                          b->position.y + bullet_radius,
+                          Vector4{1,1,1,1});
+            }
+
+
+            // HUD.
+            if (level_state == LEVEL_GAMEPLAY) {
+                set_texture(&white);
+                float yy = back_buffer_height * 0.9f;
+                for (int index = 0; index < my_health; index++) {
+                    float x = 20.0f * index + 5.0f;
+                    draw_quad(x, yy, x + 15.0f, yy + 15.0f, Vector4{1,1,1,1});
+                }
+
+                int score_y = (int)(back_buffer_height * 0.05f);
+                char *score_text = tprint("Score: %zu", my_score);
+                draw_text(&font, score_text, 10, score_y, Vector4{1,1,1,1});
+            }
+        } else if (game_state == GAME_STATE_MENU) {
+            int x = (int)((back_buffer_width * 0.5f) - (22 * 8));
+            int y = (int)(back_buffer_height * 0.5f);
+            draw_text(&font, "Press <space> to start", x, y, Vector4{1,1,1,1});
         }
 
         // Debug shapes.
