@@ -614,14 +614,18 @@ int main(void) {
             if (level_state == LEVEL_GAMEPLAY) {
                 set_texture(&white);
                 float yy = back_buffer_height * 0.9f;
+                Vector4 white_color = {1,1,1,1};
+
                 for (int index = 0; index < my_health; index++) {
                     float x = 20.0f * index + 5.0f;
-                    draw_quad(x, yy, x + 15.0f, yy + 15.0f, Vector4{1,1,1,1});
+                    draw_quad(x, yy, x + 15.0f, yy + 15.0f, white_color);
                 }
 
                 int score_y = (int)(back_buffer_height * 0.05f);
                 char *score_text = tprint("Score: %zu", my_score);
-                draw_text(&font, score_text, 10, score_y, Vector4{1,1,1,1});
+                draw_text(&font, score_text, 10, score_y, white_color);
+
+                draw_text(&font, tprint("Level: %d", level_index), 10, score_y + 48, white_color);
             }
         } else if (game_state == GAME_STATE_MENU) {
             int x = (int)((back_buffer_width * 0.5f) - (22 * 8));
