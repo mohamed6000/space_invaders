@@ -1,0 +1,1 @@
+gcc -g -Wall -Werror -Wextra -Istb src/main.cpp -o invaders_linux -lX11 -lm
