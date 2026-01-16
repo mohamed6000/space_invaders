@@ -93,6 +93,7 @@ int level_index = 1;
 enum Game_State {
     GAME_STATE_MENU,
     GAME_STATE_GAME,
+    GAME_STATE_OVER,
 };
 
 Game_State game_state = GAME_STATE_MENU;
@@ -201,11 +202,8 @@ inline bool check_invaders_collision(Bullet *bullet) {
                 my_health -= 1;
                 if (my_health <= 0) {
                     is_alive = false;
-#if OS_WINDOWS
-                    print("Game Over: You have %lld points\n", my_score);
-#else
-                    print("Game Over: You have %ld points\n", my_score);
-#endif
+
+                    game_state = GAME_STATE_OVER;
                 }
                 shake_radius = 2.0f;
             }
@@ -469,6 +467,23 @@ int main(void) {
             if (key_space.is_down) {
                 game_state = GAME_STATE_GAME;
             }
+        } else if (game_state == GAME_STATE_OVER) {
+            global_scroll.y -= 0.25f * current_dt;
+
+            if (key_space.is_down) {
+                game_state  = GAME_STATE_GAME;
+                level_state = LEVEL_ENEMY_INTRO;
+                level_index = 1;
+                
+                has_force_shield       = false;
+                force_shield_countdown = 0;
+
+                my_health  = 3;
+                max_health = 5;
+                is_alive   = true;
+                my_score   = 0;
+                shot_type  = SHOT_SINGLE;
+            }
         } else if (game_state == GAME_STATE_GAME) {
             if (level_state == LEVEL_GAMEPLAY) {
                 global_scroll.y -= 0.22f * current_dt;
@@ -491,6 +506,8 @@ int main(void) {
                     level_state = LEVEL_GAMEPLAY;
                 }
             }
+        } else {
+            assert(false);
         }
 
         if (global_scroll.y >= 1) global_scroll.y = 0;
@@ -631,6 +648,17 @@ int main(void) {
             int x = (int)((back_buffer_width * 0.5f) - (22 * 8));
             int y = (int)(back_buffer_height * 0.5f);
             draw_text(&font, "Press <space> to start", x, y, Vector4{1,1,1,1});
+        } else if (game_state == GAME_STATE_OVER) {
+            int x = (int)(back_buffer_width * 0.5f);
+            int y = (int)(back_buffer_height * 0.7f);
+
+            Vector4 white_color = {1,1,1,1};
+
+            draw_text(&font, "GAME OVER", x - 9*10, y + 48, white_color);
+            draw_text(&font, tprint("Your score is %zu", my_score), x - 24*8, y - 48, white_color);
+            draw_text(&font, "Press <space> to restart", x - 24*8, y - 48*2, white_color);
+        } else {
+            assert(false);
         }
 
         // Debug shapes.
