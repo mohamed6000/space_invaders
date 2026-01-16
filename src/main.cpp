@@ -33,6 +33,7 @@ int my_health  = 3;
 int max_health = 5;
 bool is_alive = true;
 s64 my_score = 0;
+s64 my_highest_score = 0;
 
 enum Shot_Type {
     SHOT_SINGLE = 0,
@@ -204,6 +205,8 @@ inline bool check_invaders_collision(Bullet *bullet) {
                     is_alive = false;
 
                     game_state = GAME_STATE_OVER;
+
+                    if (my_score > my_highest_score) my_highest_score = my_score;
                 }
                 shake_radius = 2.0f;
             }
@@ -404,14 +407,6 @@ void simulate_gameplay(float dt) {
             level_state = LEVEL_ENEMY_INTRO;
         }
     }
-
-    screen_shake = {0, 0};
-    if (shake_radius > 1) {
-        screen_shake.x = sinf(shake_angle) * shake_radius * dt;
-        screen_shake.y = cosf(shake_angle) * shake_radius * dt;
-        shake_radius -= 5.0f * dt;
-        shake_angle += 0.5f + random_get_float(1.5f - 0.5f);
-    }
 }
 
 int main(void) {
@@ -483,6 +478,17 @@ int main(void) {
                 is_alive   = true;
                 my_score   = 0;
                 shot_type  = SHOT_SINGLE;
+
+                global_scroll = {0,0};
+                screen_shake  = {0,0};
+                shake_angle   = 0.0f;
+                shake_radius  = 1.0f;
+
+                invaders_count = 0;
+                bullet_count   = 0;
+                pickup_count   = 0;
+
+                spawn_invaders(level_index);
             }
         } else if (game_state == GAME_STATE_GAME) {
             if (level_state == LEVEL_GAMEPLAY) {
@@ -511,6 +517,14 @@ int main(void) {
         }
 
         if (global_scroll.y >= 1) global_scroll.y = 0;
+
+        screen_shake = {0, 0};
+        if (shake_radius > 1) {
+            screen_shake.x = sinf(shake_angle) * shake_radius * current_dt;
+            screen_shake.y = cosf(shake_angle) * shake_radius * current_dt;
+            shake_radius -= 5.0f * current_dt;
+            shake_angle += 0.5f + random_get_float(1.5f - 0.5f);
+        }
 
 
         glViewport(0, 0, back_buffer_width, back_buffer_height);
@@ -656,7 +670,8 @@ int main(void) {
 
             draw_text(&font, "GAME OVER", x - 9*10, y + 48, white_color);
             draw_text(&font, tprint("Your score is %zu", my_score), x - 24*8, y - 48, white_color);
-            draw_text(&font, "Press <space> to restart", x - 24*8, y - 48*2, white_color);
+            draw_text(&font, tprint("Highest score is %zu", my_highest_score), x - 24*8, y - 48*2, white_color);
+            draw_text(&font, "Press <space> to restart", x - 24*8, y - 48*3, white_color);
         } else {
             assert(false);
         }
