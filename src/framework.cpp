@@ -823,6 +823,9 @@ static LRESULT CALLBACK win32_main_window_callback(HWND hwnd, UINT msg, WPARAM w
     return 0;
 }
 
+#include <timeapi.h>
+#pragma comment(lib, "Winmm.lib")
+
 static float64 one_over_frequency = 1.0;
 
 OS_Window *init_window(const char *title, int w, int h) {
@@ -883,6 +886,8 @@ OS_Window *init_window(const char *title, int w, int h) {
     UpdateWindow(hwnd);
     ShowWindow(hwnd, SW_SHOW);
 
+    timeBeginPeriod(1);
+
     LARGE_INTEGER large_frequency;
     if (QueryPerformanceFrequency(&large_frequency)) {
         one_over_frequency = 1.0 / (float64)large_frequency.QuadPart;
@@ -901,6 +906,8 @@ float64 get_current_time(void) {
 }
 
 void free_window_and_opengl(OS_Window *w) {
+    timeEndPeriod(1);
+
     UNUSED(w->hwnd);
     W32_wglMakeCurrent(null, null);
     W32_wglDeleteContext(gl_context);
@@ -1155,8 +1162,9 @@ const float64 ONE_OVER_NANO_SECOND = 0.000000001;
 
 float64 get_current_time(void) {
     struct timespec tspec;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &tspec);
-    return (float64)tspec.tv_sec + tspec.tv_nsec * ONE_OVER_NANO_SECOND;
+    // clock_gettime(CLOCK_MONOTONIC_RAW, &tspec);
+    clock_gettime(CLOCK_MONOTONIC, &tspec);
+    return (float64)tspec.tv_sec + (float64)tspec.tv_nsec * ONE_OVER_NANO_SECOND;
 }
 
 void free_window_and_opengl(OS_Window *w) {

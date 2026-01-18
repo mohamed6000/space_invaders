@@ -208,7 +208,8 @@ inline bool check_invaders_collision(Bullet *bullet) {
 
                     if (my_score > my_highest_score) my_highest_score = my_score;
                 }
-                shake_radius = 2.0f;
+                // shake_radius = 2.0f;
+                shake_radius = 5.0f;
             }
             return true;
         }
@@ -445,12 +446,12 @@ int main(void) {
     float64 last_counter = 0;
 
     while (!should_quit) {
+        update_window_events();
+
         float64 wall_counter = get_current_time();
         float current_dt = (float)(wall_counter - last_counter);
-        if (current_dt > 0.16f) current_dt = 0.16f;
+        if (current_dt > 0.15f) current_dt = 0.15f;
         last_counter = wall_counter;
-
-        update_window_events();
 
         if (key_esc.is_down) {
             should_quit = true;
@@ -518,13 +519,28 @@ int main(void) {
 
         if (global_scroll.y >= 1) global_scroll.y = 0;
 
+#if 0
         screen_shake = {0, 0};
         if (shake_radius > 1) {
             screen_shake.x = sinf(shake_angle) * shake_radius * current_dt;
             screen_shake.y = cosf(shake_angle) * shake_radius * current_dt;
+            
             shake_radius -= 5.0f * current_dt;
-            shake_angle += 0.5f + random_get_float(1.5f - 0.5f);
+            
+            shake_angle += (0.5f + random_get_float(1.5f - 0.5f)) * 60.0f * current_dt + 10.0f * current_dt;
         }
+        // shake_radius = Max(shake_radius, 0.0f);
+#else
+        screen_shake = {0,0};
+        if (shake_radius > 1) {
+            // float max_angle = 20.0f;
+            // float angle = max_angle * shake_angle * (-1.0f + random_get_float(2.0f));
+            screen_shake.x = current_dt * shake_radius * sinf(-1.0f + random_get_float(2.0f));
+            screen_shake.y = current_dt * shake_radius * cosf(-1.0f + random_get_float(2.0f));
+
+            shake_radius -= 5.0f * current_dt;
+        }
+#endif
 
 
         glViewport(0, 0, back_buffer_width, back_buffer_height);
@@ -689,10 +705,14 @@ int main(void) {
         imm_draw_circle(ship_position, ship_radius * 0.75f, {1,0,0,1});
 #endif
 
+        draw_text(&font, tprint("%.2fms %d", current_dt*1000, (int)(1.0f / current_dt)), 
+                  (int)(back_buffer_width * 0.45f), 
+                  (int)(back_buffer_height * 0.9f), Vector4{1,1,0,1});
+
         frame_flush();
         swap_buffers(window);
 
-        os_sleep(1);
+        // os_sleep(1);
 
         reset_temporary_storage();
     }
