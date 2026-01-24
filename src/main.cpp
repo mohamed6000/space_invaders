@@ -20,6 +20,7 @@ float ship_radius     = 114.0f / 2.0f;
 float pickup_radius   = 114.0f / 2.0f;
 float bullet_radius   = 45.0f / 2.0f;
 Vector2 ship_position = {400, 60};
+Vector2 ship_velocity;
 
 Vector2 global_scroll;
 Vector2 screen_shake;
@@ -296,18 +297,28 @@ void simulate_gameplay(float dt) {
         }
     }
 
-    float dx = 240.0f * dt;
+    // p' = (1/2)*a*t*t + v*t + p
+    // v' = a*t + v
+    // a' = a
+
+    float ship_speed = 550.0f;
+    float dx = 0.0f;
 
     if (is_alive) {
-        if (key_left.is_down) { 
-            ship_position.x -= dx;
+        if (key_left.is_down) {
+            dx = -1.0f;
             global_scroll.x -= 0.1f * dt;
         }
         if (key_right.is_down) {
-            ship_position.x += dx;
+            dx = 1.0f;
             global_scroll.x += 0.1f * dt;
         }
     }
+
+    dx *= ship_speed;
+    dx -= 1.5f * ship_velocity.x;
+    ship_position.x += 0.5f*dx*dt*dt + ship_velocity.x*dt;
+    ship_velocity.x += dx*dt;
 
     float x0 = 0.8f * ship_radius;
     float x1 = back_buffer_width - x0;
@@ -446,12 +457,12 @@ int main(void) {
     float64 last_counter = 0;
 
     while (!should_quit) {
-        update_window_events();
-
         float64 wall_counter = get_current_time();
         float current_dt = (float)(wall_counter - last_counter);
         if (current_dt > 0.15f) current_dt = 0.15f;
         last_counter = wall_counter;
+
+        update_window_events();
 
         if (key_esc.is_down) {
             should_quit = true;
@@ -484,6 +495,7 @@ int main(void) {
                 screen_shake  = {0,0};
                 shake_angle   = 0.0f;
                 shake_radius  = 1.0f;
+                ship_velocity = {0,0};
 
                 invaders_count = 0;
                 bullet_count   = 0;
@@ -499,6 +511,8 @@ int main(void) {
             } else if (level_state == LEVEL_ENEMY_INTRO) {
                 all_introduced_invaders = true;
                 global_scroll.y -= 0.88f * current_dt;
+
+                ship_velocity = {0,0};
 
                 for (int index = 0; index < invaders_count; index++) {
                     Invader *it = &invaders[index];
@@ -519,7 +533,7 @@ int main(void) {
 
         if (global_scroll.y >= 1) global_scroll.y = 0;
 
-#if 0
+#if 1
         screen_shake = {0, 0};
         if (shake_radius > 1) {
             screen_shake.x = sinf(shake_angle) * shake_radius * current_dt;
@@ -529,7 +543,6 @@ int main(void) {
             
             shake_angle += (0.5f + random_get_float(1.5f - 0.5f)) * 60.0f * current_dt + 10.0f * current_dt;
         }
-        // shake_radius = Max(shake_radius, 0.0f);
 #else
         screen_shake = {0,0};
         if (shake_radius > 1) {
@@ -555,15 +568,15 @@ int main(void) {
 
         // Background
         {
-            float x0 = -(back_buffer_width * 0.25f);
-            float x1 =  (back_buffer_width * 1.25f);
+            float x0 = -(back_buffer_width * 0.5f);
+            float x1 =  (back_buffer_width * 1.5f);
 
-            float y0 = -(back_buffer_height * 0.25f);
-            float y1 =  (back_buffer_height * 1.25f);
+            float y0 = -(back_buffer_height * 0.5f);
+            float y1 =  (back_buffer_height * 1.5f);
 
             set_texture(&background);
             draw_quad(x0, y0, x1, y1, 
-                      global_scroll.x, global_scroll.y, 
+                      global_scroll.x,     global_scroll.y, 
                       global_scroll.x + 1, global_scroll.y + 1, 
                       Vector4{1,1,1,1});
 
@@ -588,13 +601,15 @@ int main(void) {
                 
                 set_texture(invader_ships[invader->texture_index]);
 
-                Vector2 p0;
-                p0.x = invader->position.x - ship_radius;
-                p0.y = invader->position.y - ship_radius;
+                Vector2 p0 = {
+                    invader->position.x - ship_radius,
+                    invader->position.y - ship_radius,
+                };
 
-                Vector2 p1;
-                p1.x = invader->position.x + ship_radius;
-                p1.y = invader->position.y + ship_radius;
+                Vector2 p1 = {
+                    invader->position.x + ship_radius,
+                    invader->position.y + ship_radius,
+                };
 
                 draw_quad(p0.x, p0.y, p1.x, p1.y, 0, 1, 1, 0, Vector4{1,1,1,1});
             }
@@ -605,13 +620,15 @@ int main(void) {
                 else
                     set_texture(&spaceship_upgrade);
                 
-                Vector2 p0;
-                p0.x = ship_position.x - ship_radius;
-                p0.y = ship_position.y - ship_radius;
+                Vector2 p0 = {
+                    ship_position.x - ship_radius,
+                    ship_position.y - ship_radius,
+                };
 
-                Vector2 p1;
-                p1.x = ship_position.x + ship_radius;
-                p1.y = ship_position.y + ship_radius;
+                Vector2 p1 = {
+                    ship_position.x + ship_radius,
+                    ship_position.y + ship_radius,
+                };
 
                 draw_quad(p0.x, p0.y, 
                           p1.x, p1.y,
@@ -692,9 +709,16 @@ int main(void) {
             assert(false);
         }
 
+
         // Debug shapes.
+        draw_text(&font, tprint("%.2fms %d", current_dt*1000, (int)(1.0f / current_dt)), 
+                  (int)(back_buffer_width * 0.45f), 
+                  (int)(back_buffer_height * 0.9f), Vector4{1,1,0,1});
+
 #if 0
         frame_begin(2);
+
+        set_texture(&white);
 
         for (int index = 0; index < invaders_count; index++) {
             Invader *invader = &invaders[index];
@@ -705,14 +729,8 @@ int main(void) {
         imm_draw_circle(ship_position, ship_radius * 0.75f, {1,0,0,1});
 #endif
 
-        draw_text(&font, tprint("%.2fms %d", current_dt*1000, (int)(1.0f / current_dt)), 
-                  (int)(back_buffer_width * 0.45f), 
-                  (int)(back_buffer_height * 0.9f), Vector4{1,1,0,1});
-
         frame_flush();
         swap_buffers(window);
-
-        // os_sleep(1);
 
         reset_temporary_storage();
     }
